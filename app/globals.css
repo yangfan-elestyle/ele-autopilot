@@ -1,4 +1,7 @@
-@import "tailwindcss";
+@layer reset, theme, base, antd, components, utilities;
+
+@import 'antd/dist/reset.css' layer(reset);
+@import 'tailwindcss';
 
 :root {
   --background: #ffffff;
@@ -17,6 +20,11 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
