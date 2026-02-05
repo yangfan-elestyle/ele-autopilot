@@ -119,7 +119,12 @@ export function countTasks(filter: Record<string, unknown>) {
   return row?.total ?? 0;
 }
 
-export function createTask(input: { text: string; folder_id: Id; sub_ids?: Id[] }) {
+export function createTask(input: {
+  text: string;
+  folder_id: Id;
+  sub_ids?: Id[];
+  created_at?: string;
+}) {
   const text = input.text.trim();
   if (!text) throw new Error('`text` is required');
 
@@ -131,12 +136,22 @@ export function createTask(input: { text: string; folder_id: Id; sub_ids?: Id[] 
   const subIds = input.sub_ids ?? [];
   if (!Array.isArray(subIds) || !subIds.every(isValidId)) throw new Error('Invalid sub_ids');
 
-  queryRun(`INSERT INTO tasks (id, folder_id, text, sub_ids) VALUES (?, ?, ?, ?)`, [
-    id,
-    folderId,
-    text,
-    JSON.stringify(subIds),
-  ]);
+  if (input.created_at) {
+    queryRun(`INSERT INTO tasks (id, folder_id, text, sub_ids, created_at) VALUES (?, ?, ?, ?, ?)`, [
+      id,
+      folderId,
+      text,
+      JSON.stringify(subIds),
+      input.created_at,
+    ]);
+  } else {
+    queryRun(`INSERT INTO tasks (id, folder_id, text, sub_ids) VALUES (?, ?, ?, ?)`, [
+      id,
+      folderId,
+      text,
+      JSON.stringify(subIds),
+    ]);
+  }
   const task = getTaskById(id);
   if (!task) throw new Error('Not found');
   return task;
@@ -146,8 +161,12 @@ export function createTasks(inputs: { text: string; folder_id: Id; sub_ids?: Id[
   if (!inputs.length) return [];
 
   const results: ReturnType<typeof createTask>[] = [];
-  for (const input of inputs) {
-    results.push(createTask(input));
+  // 为每个任务生成递增的时间戳，确保批量创建时顺序稳定
+  // 每个任务间隔 1 毫秒，避免 created_at 相同导致排序不稳定
+  const baseTime = Date.now();
+  for (let i = 0; i < inputs.length; i++) {
+    const created_at = new Date(baseTime + i).toISOString();
+    results.push(createTask({ ...inputs[i], created_at }));
   }
   return results;
 }
