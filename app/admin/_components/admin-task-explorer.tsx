@@ -413,7 +413,7 @@ export default function AdminTaskExplorer() {
       content: (
         <div>
           <p>确定要执行以下任务吗？</p>
-          <div className="mt-2 max-h-60 overflow-y-auto whitespace-pre-wrap rounded bg-gray-100 p-2 text-sm">
+          <div className="mt-2 max-h-60 overflow-y-auto rounded bg-gray-100 p-2 text-sm whitespace-pre-wrap">
             {task.text}
           </div>
           {task.sub_ids && task.sub_ids.length > 0 && (

@@ -214,7 +214,7 @@ export default function FolderSider({
                 <span className="group/node relative -my-0.5 flex min-h-[30px] w-full items-center rounded py-0.5 transition-colors hover:bg-(--ant-color-fill-content)">
                   <span className="min-w-0 flex-1">{resolvedTitle as React.ReactNode}</span>
                   <span
-                    className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded bg-(--ant-color-bg-container) px-1 opacity-0 shadow-sm transition-opacity group-hover/node:opacity-100"
+                    className="absolute top-1/2 right-0 flex -translate-y-1/2 items-center gap-0.5 rounded bg-(--ant-color-bg-container) px-1 opacity-0 shadow-sm transition-opacity group-hover/node:opacity-100"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Button

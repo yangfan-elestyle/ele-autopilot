@@ -141,7 +141,7 @@ export default function PreviewPage() {
         </Title>
         {task && (
           <div
-            className="min-w-0 max-h-20 flex-1 overflow-auto text-sm whitespace-pre-wrap text-gray-500"
+            className="max-h-20 min-w-0 flex-1 overflow-auto text-sm whitespace-pre-wrap text-gray-500"
             title={task.text}
           >
             {task.text}

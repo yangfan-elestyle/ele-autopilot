@@ -137,13 +137,10 @@ export function createTask(input: {
   if (!Array.isArray(subIds) || !subIds.every(isValidId)) throw new Error('Invalid sub_ids');
 
   if (input.created_at) {
-    queryRun(`INSERT INTO tasks (id, folder_id, text, sub_ids, created_at) VALUES (?, ?, ?, ?, ?)`, [
-      id,
-      folderId,
-      text,
-      JSON.stringify(subIds),
-      input.created_at,
-    ]);
+    queryRun(
+      `INSERT INTO tasks (id, folder_id, text, sub_ids, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [id, folderId, text, JSON.stringify(subIds), input.created_at],
+    );
   } else {
     queryRun(`INSERT INTO tasks (id, folder_id, text, sub_ids) VALUES (?, ?, ?, ?)`, [
       id,

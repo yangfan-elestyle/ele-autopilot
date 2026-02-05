@@ -81,10 +81,7 @@ export default function TaskContent({
       dataIndex: 'text',
       ellipsis: true,
       render: (value: string) => (
-        <div
-          className="max-h-40 overflow-auto break-all whitespace-pre-wrap"
-          title={value}
-        >
+        <div className="max-h-40 overflow-auto break-all whitespace-pre-wrap" title={value}>
           {value}
         </div>
       ),
