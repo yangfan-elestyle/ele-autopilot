@@ -5,11 +5,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiJson, makeListUrl } from '../_data/admin-api';
 import { fetchAgentConfig, useAgentConnection } from '../_hooks/use-agent-connection';
 import { executeJob } from '../_services/job-executor';
-import type { Folder, Id, Job, Task, TaskJobStats } from '../_types';
+import type { Folder, Id, Task, TaskJobStats } from '../_types';
 import { buildFolderTree } from '../_utils/folder-tree';
 import FolderModal from './folder-modal';
 import FolderSider from './folder-sider';
-import JobProgressDrawer from './job-progress-drawer';
 import SelectedTasksDrawer from './selected-tasks-drawer';
 import TaskChainModal from './task-chain-modal';
 import TaskContent from './task-content';
@@ -55,9 +54,6 @@ export default function AdminTaskExplorer() {
   const [taskChainViewSubIds, setTaskChainViewSubIds] = useState<Id[]>([]);
   const [taskChainViewSubTasksById, setTaskChainViewSubTasksById] = useState<Record<Id, Task>>({});
 
-  // Job 执行相关状态
-  const [jobProgressOpen, setJobProgressOpen] = useState(false);
-  const [currentJobId, setCurrentJobId] = useState<Id | null>(null);
   const { status: agentStatus } = useAgentConnection();
 
   const visibleFolderIds = useMemo(() => {
@@ -429,7 +425,7 @@ export default function AdminTaskExplorer() {
         try {
           // 从 API 获取最新配置，避免闭包捕获旧值
           const latestConfig = await fetchAgentConfig();
-          const jobId = await executeJob(
+          await executeJob(
             { taskId: task.id, config: latestConfig },
             {
               onJobCreated: (job) => {
@@ -440,9 +436,8 @@ export default function AdminTaskExplorer() {
               },
             },
           );
-          // 打开进度面板
-          setCurrentJobId(jobId);
-          setJobProgressOpen(true);
+          // 跳转到 preview 页面
+          window.open(`/admin/preview/${task.id}`, '_blank');
         } catch {
           // 错误已在 onError 回调中处理
         }
@@ -686,14 +681,6 @@ export default function AdminTaskExplorer() {
         readonly
       />
 
-      <JobProgressDrawer
-        open={jobProgressOpen}
-        jobId={currentJobId}
-        onClose={() => {
-          setJobProgressOpen(false);
-          setCurrentJobId(null);
-        }}
-      />
     </>
   );
 }
