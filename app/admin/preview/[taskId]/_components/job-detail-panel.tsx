@@ -5,9 +5,23 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
-import { Alert, Card, Collapse, Descriptions, Spin, Tag, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Collapse,
+  Descriptions,
+  message,
+  Popconfirm,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { stopJobOnLocal } from '../../../_services/local-api';
 
 import JobTaskDetail from './job-task-detail';
 import type { JobLite, JobStatus, JobTask, JobTaskLite } from '../../../_types';
@@ -123,6 +137,31 @@ export default function JobDetailPanel({
     loadJob();
   }, [loadJob]);
 
+  const handleStopJob = useCallback(async () => {
+    if (!job) return;
+    try {
+      await stopJobOnLocal(job.id);
+      message.success('已发送停止 Job 信号');
+      loadJob();
+    } catch (error) {
+      message.error(`停止 Job 失败: ${(error as Error).message}`);
+    }
+  }, [job, loadJob]);
+
+  const handleStopTask = useCallback(
+    async (taskId: string) => {
+      if (!job) return;
+      try {
+        await stopJobOnLocal(job.id, taskId);
+        message.success('已发送停止任务信号');
+        loadJob();
+      } catch (error) {
+        message.error(`停止任务失败: ${(error as Error).message}`);
+      }
+    },
+    [job, loadJob],
+  );
+
   // 轮询正在执行的 job
   useEffect(() => {
     if (!job || (job.status !== 'running' && job.status !== 'pending')) {
@@ -173,7 +212,15 @@ export default function JobDetailPanel({
 
     return {
       key: task.id,
-      label: <JobTaskLabel task={task} index={index} />,
+      label: (
+        <JobTaskLabel
+          task={task}
+          index={index}
+          jobStatus={job.status}
+          onStopJob={handleStopJob}
+          onStopTask={handleStopTask}
+        />
+      ),
       children: (
         <JobTaskDetail taskLite={task} taskDetail={cachedDetail ?? null} loading={isLoading} />
       ),
@@ -237,8 +284,22 @@ export default function JobDetailPanel({
 }
 
 // JobTask 标题组件
-function JobTaskLabel({ task, index }: { task: JobTaskLite; index: number }) {
+function JobTaskLabel({
+  task,
+  index,
+  jobStatus,
+  onStopJob,
+  onStopTask,
+}: {
+  task: JobTaskLite;
+  index: number;
+  jobStatus: JobStatus;
+  onStopJob: () => void;
+  onStopTask: (taskId: string) => void;
+}) {
   const config = statusConfig[task.status];
+  const isRunning = task.status === 'running';
+  const jobIsActive = jobStatus === 'running' || jobStatus === 'pending';
 
   return (
     <div className="flex w-full items-start gap-3">
@@ -249,6 +310,38 @@ function JobTaskLabel({ task, index }: { task: JobTaskLite; index: number }) {
         {config.text}
       </Tag>
       <span className="min-w-0 flex-1 overflow-hidden text-sm break-all">{task.task_text}</span>
+      {isRunning && jobIsActive && (
+        <span className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
+          <Popconfirm
+            title="停止当前任务"
+            description="仅停止当前正在执行的任务，后续任务继续执行"
+            onConfirm={() => onStopTask(task.task_id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              size="small"
+              type="text"
+              icon={<StopOutlined />}
+              className="!text-orange-500 hover:!text-orange-600"
+            >
+              停止任务
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="停止整个 Job"
+            description="当前任务将失败，剩余所有任务将被跳过"
+            onConfirm={onStopJob}
+            okText="确定"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" type="text" danger icon={<StopOutlined />}>
+              停止 Job
+            </Button>
+          </Popconfirm>
+        </span>
+      )}
       {task.started_at && (
         <span className="shrink-0 text-xs text-gray-400">
           {formatDuration(task.started_at, task.completed_at)}

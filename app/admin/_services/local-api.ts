@@ -57,6 +57,40 @@ export async function dispatchToLocal(request: LocalRunRequest): Promise<LocalRu
   return response.json();
 }
 
+type StopJobResponse = {
+  code: number;
+  message: string;
+  data: {
+    success: boolean;
+    message: string;
+    task_id: string | null;
+    task_index: number | null;
+  } | null;
+};
+
+/**
+ * 停止 Local 上正在执行的 Job 或指定 Task
+ *
+ * @param jobId Job ID
+ * @param taskId 可选，传入则只停止该 task，不传则停止整个 Job
+ */
+export async function stopJobOnLocal(jobId: string, taskId?: string): Promise<StopJobResponse> {
+  const agentUrl = getAgentUrl();
+
+  const response = await fetch(`${agentUrl}/autopilot/jobs/${jobId}/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(taskId ? { task_id: taskId } : {}),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    throw new Error(error.message || `Local API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 /**
  * 检测 Local 连接状态
  *
