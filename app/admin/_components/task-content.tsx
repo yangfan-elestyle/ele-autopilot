@@ -80,8 +80,15 @@ export default function TaskContent({
       title: '任务内容',
       dataIndex: 'text',
       ellipsis: true,
-      render: (value: string) => (
-        <div className="max-h-40 overflow-auto break-all whitespace-pre-wrap" title={value}>
+      render: (value: string, record) => (
+        <div
+          className="max-h-40 cursor-text overflow-auto break-all whitespace-pre-wrap hover:bg-(--ant-color-fill-tertiary) rounded px-1 -mx-1 transition-colors"
+          title={value}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditTask(record);
+          }}
+        >
           {value}
         </div>
       ),
