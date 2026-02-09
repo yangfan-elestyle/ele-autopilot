@@ -57,19 +57,20 @@ export async function POST(request: Request) {
   // 批量创建：body 为数组
   if (Array.isArray(body)) {
     try {
-      const inputs: { text: string; folder_id: Id; sub_ids?: Id[] }[] = [];
+      const inputs: { title?: string; text: string; folder_id: Id; sub_ids?: Id[] }[] = [];
       for (const item of body) {
         if (!item || typeof item !== 'object') {
           return jsonError('Each item must be an object', 400);
         }
         const payload = item as Record<string, unknown>;
+        const title = typeof payload.title === 'string' ? payload.title : undefined;
         const text = typeof payload.text === 'string' ? payload.text.trim() : '';
         const folder_id = payload.folder_id;
 
         if (!text) return jsonError('`text` is required for each item', 400);
         if (!isValidId(folder_id)) return jsonError('`folder_id` is required for each item', 400);
 
-        inputs.push({ text, folder_id });
+        inputs.push({ title, text, folder_id });
       }
 
       const tasks = createTasks(inputs);
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
       : {};
 
   try {
+    const title = typeof payload.title === 'string' ? payload.title : undefined;
     const text = typeof payload.text === 'string' ? payload.text : '';
     const folder_id = payload.folder_id;
     let sub_ids: Id[] | undefined;
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
       return jsonError('`folder_id` is required', 400);
     }
 
-    const task = createTask({ text, folder_id, sub_ids });
+    const task = createTask({ title, text, folder_id, sub_ids });
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

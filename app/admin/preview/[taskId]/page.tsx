@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import JobDetailPanel from './_components/job-detail-panel';
 import JobHistoryList from './_components/job-history-list';
 import type { JobListItem, JobLite, JobTask, Task } from '../../_types';
+import TaskTitleTag from '../../_components/task-title-tag';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -144,6 +145,7 @@ export default function PreviewPage() {
             className="max-h-20 min-w-0 flex-1 overflow-auto text-sm whitespace-pre-wrap text-gray-500"
             title={task.text}
           >
+            <TaskTitleTag title={task.title} />
             {task.text}
           </div>
         )}

@@ -29,8 +29,9 @@ Ele-Autopilot 是一个用于 QA 任务管理的 Next.js App Router Web 应用�
 
 ## Database
 
-- 数据表：`folders`（通过 `parent_id` 表示层级关系）、`tasks`（关联到 `folders`）。
-- 当前工程处于初始开发阶段，不需要处理数据库迁移、历史数据。
+- 数据表：`folders`（通过 `parent_id` 表示层级关系）、`tasks`（关联到 `folders`）、`jobs` / `job_tasks`（任务执行记录）、`settings`（全局配置）。
+- 项目已在线上运行，修改 DB 结构时**必须**提供向后兼容的迁移逻辑（如 `ALTER TABLE ... ADD COLUMN`），确保已有数据不被破坏。
+- 迁移代码放在 `lib/db/connection.ts` 的 `initSchema()` 中，使用 `try { ALTER TABLE } catch { /* 列已存在 */ }` 模式处理幂等性。
 
 ## Build, Development Commands
 
@@ -56,10 +57,10 @@ Ele-Autopilot 是一个用于 QA 任务管理的 Next.js App Router Web 应用�
 
 - 提交信息遵循 Conventional Commits（仓库历史示例：`feat: add sqlite`）：`feat|fix|chore|refactor|docs|test: ...`。
 - PR 需包含：变更动机与影响范围；UI 变更附截图（尤其 `app/admin`）；API 变更列出请求/响应示例。
-- 如修改 DB 结构，请同步更新 `lib/db/connection.ts` 的建表逻辑，并说明迁移/兼容策略（避免破坏已有数据）。
+- 如修改 DB 结构，请同步更新 `lib/db/connection.ts` 的建表逻辑与迁移代码，并在 PR 中说明迁移策略。
 
 ## Security & Configuration Tips
 
 - 不要提交 `.env*`、`data/`、`.next/` 等本地产物；敏感配置放在 `.env.local`。
 - 可通过环境变量 `SQLITE_DB_PATH` 自定义 SQLite 文件路径（默认 `data/app.sqlite`）。
-- 本地数据库首次启动会自动建表并写入示例数据；需要重置时可删除 `data/app.sqlite`（仅限本地开发）。
+- 本地数据库首次启动会自动建表并写入示例数据；需要重置时可删除 `data/app.sqlite`（仅限本地开发，线上环境禁止直接删除数据库文件）。

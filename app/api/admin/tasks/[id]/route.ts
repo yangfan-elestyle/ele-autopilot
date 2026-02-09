@@ -54,6 +54,12 @@ async function updateTask(request: Request, context: NextRouteContext) {
       : {};
 
   try {
+    const title =
+      payload.title === undefined
+        ? undefined
+        : typeof payload.title === 'string'
+          ? payload.title
+          : null;
     const text = typeof payload.text === 'string' ? payload.text : undefined;
     let folder_id: Id | undefined;
     if (payload.folder_id === undefined) {
@@ -73,7 +79,7 @@ async function updateTask(request: Request, context: NextRouteContext) {
       throw new Error('Invalid sub_ids');
     }
 
-    const task = updateTaskById(id, { text, folder_id, sub_ids });
+    const task = updateTaskById(id, { title, text, folder_id, sub_ids });
     return NextResponse.json(task);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

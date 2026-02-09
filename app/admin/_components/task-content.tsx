@@ -11,6 +11,7 @@ import {
 import { Button, Input, Layout, Space, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Folder, Id, Task, TaskJobStats } from '../_types';
+import TaskTitleTag from './task-title-tag';
 
 type TaskContentProps = {
   tasks: Task[];
@@ -82,13 +83,14 @@ export default function TaskContent({
       ellipsis: true,
       render: (value: string, record) => (
         <div
-          className="max-h-40 cursor-text overflow-auto break-all whitespace-pre-wrap hover:bg-(--ant-color-fill-tertiary) rounded px-1 -mx-1 transition-colors"
+          className="-mx-1 max-h-40 cursor-text overflow-auto rounded px-1 break-all whitespace-pre-wrap transition-colors hover:bg-(--ant-color-fill-tertiary)"
           title={value}
           onClick={(e) => {
             e.stopPropagation();
             onEditTask(record);
           }}
         >
+          <TaskTitleTag title={record.title} />
           {value}
         </div>
       ),

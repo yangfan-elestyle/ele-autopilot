@@ -12,8 +12,8 @@ function buildTasksFilterParts(filter: Record<string, unknown>) {
 
   const q = typeof filter.q === 'string' ? filter.q.trim() : '';
   if (q) {
-    where.push(`t.text LIKE ? ESCAPE '\\'`);
-    params.push(`%${escapeLike(q)}%`);
+    where.push(`(t.text LIKE ? ESCAPE '\\' OR t.title LIKE ? ESCAPE '\\')`);
+    params.push(`%${escapeLike(q)}%`, `%${escapeLike(q)}%`);
   }
 
   const folderId = isValidId(filter.folder_id) ? filter.folder_id : null;
@@ -55,7 +55,7 @@ function buildTasksFilterParts(filter: Record<string, unknown>) {
 export function getTaskById(id: Id) {
   const row = queryGet<TaskDbRow>(
     `
-      SELECT t.id, t.folder_id, t.text, t.sub_ids, t.created_at
+      SELECT t.id, t.folder_id, t.title, t.text, t.sub_ids, t.created_at
       FROM tasks t
       WHERE t.id = ?
     `,
@@ -71,7 +71,7 @@ export function getTasksByIds(ids: Id[]) {
   const placeholders = unique.map(() => '?').join(',');
   const rows = queryAll<TaskDbRow>(
     `
-      SELECT t.id, t.folder_id, t.text, t.sub_ids, t.created_at
+      SELECT t.id, t.folder_id, t.title, t.text, t.sub_ids, t.created_at
       FROM tasks t
       WHERE t.id IN (${placeholders})
       ORDER BY t.created_at DESC
@@ -92,7 +92,7 @@ export function listTasksPage(args: ListPageArgs) {
   const rows = queryAll<TaskDbRow>(
     `
       ${withClause}
-      SELECT t.id, t.folder_id, t.text, t.sub_ids, t.created_at
+      SELECT t.id, t.folder_id, t.title, t.text, t.sub_ids, t.created_at
       FROM tasks t
       ${whereSql}
       ORDER BY t.created_at DESC
@@ -120,6 +120,7 @@ export function countTasks(filter: Record<string, unknown>) {
 }
 
 export function createTask(input: {
+  title?: string;
   text: string;
   folder_id: Id;
   sub_ids?: Id[];
@@ -133,18 +134,20 @@ export function createTask(input: {
   ensureFolderExists(folderId);
 
   const id = generateId();
+  const title = input.title?.trim() || null;
   const subIds = input.sub_ids ?? [];
   if (!Array.isArray(subIds) || !subIds.every(isValidId)) throw new Error('Invalid sub_ids');
 
   if (input.created_at) {
     queryRun(
-      `INSERT INTO tasks (id, folder_id, text, sub_ids, created_at) VALUES (?, ?, ?, ?, ?)`,
-      [id, folderId, text, JSON.stringify(subIds), input.created_at],
+      `INSERT INTO tasks (id, folder_id, title, text, sub_ids, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, folderId, title, text, JSON.stringify(subIds), input.created_at],
     );
   } else {
-    queryRun(`INSERT INTO tasks (id, folder_id, text, sub_ids) VALUES (?, ?, ?, ?)`, [
+    queryRun(`INSERT INTO tasks (id, folder_id, title, text, sub_ids) VALUES (?, ?, ?, ?, ?)`, [
       id,
       folderId,
+      title,
       text,
       JSON.stringify(subIds),
     ]);
@@ -168,10 +171,14 @@ export function createTasks(inputs: { text: string; folder_id: Id; sub_ids?: Id[
   return results;
 }
 
-export function updateTaskById(id: Id, patch: { text?: string; folder_id?: Id; sub_ids?: Id[] }) {
+export function updateTaskById(
+  id: Id,
+  patch: { title?: string | null; text?: string; folder_id?: Id; sub_ids?: Id[] },
+) {
   const existing = getTaskById(id);
   if (!existing) throw new Error('Not found');
 
+  const nextTitle = patch.title === undefined ? existing.title : patch.title?.trim() || null;
   const nextText = patch.text === undefined ? existing.text : String(patch.text).trim();
   if (!nextText) throw new Error('`text` is required');
 
@@ -180,12 +187,18 @@ export function updateTaskById(id: Id, patch: { text?: string; folder_id?: Id; s
   ensureFolderExists(nextFolderId);
 
   if (patch.sub_ids === undefined) {
-    queryRun(`UPDATE tasks SET text = ?, folder_id = ? WHERE id = ?`, [nextText, nextFolderId, id]);
+    queryRun(`UPDATE tasks SET title = ?, text = ?, folder_id = ? WHERE id = ?`, [
+      nextTitle,
+      nextText,
+      nextFolderId,
+      id,
+    ]);
   } else {
     if (!Array.isArray(patch.sub_ids) || !patch.sub_ids.every(isValidId)) {
       throw new Error('Invalid sub_ids');
     }
-    queryRun(`UPDATE tasks SET text = ?, folder_id = ?, sub_ids = ? WHERE id = ?`, [
+    queryRun(`UPDATE tasks SET title = ?, text = ?, folder_id = ?, sub_ids = ? WHERE id = ?`, [
+      nextTitle,
       nextText,
       nextFolderId,
       JSON.stringify(patch.sub_ids),
@@ -224,6 +237,7 @@ function toTaskRow(dbRow: TaskDbRow): TaskRow {
   return {
     id: dbRow.id,
     folder_id: dbRow.folder_id,
+    title: dbRow.title ?? null,
     text: dbRow.text,
     sub_ids: parseSubIds(dbRow.sub_ids),
     created_at: dbRow.created_at,

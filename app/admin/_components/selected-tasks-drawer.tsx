@@ -3,6 +3,7 @@ import { Button, Drawer, Empty, Modal, Space, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
 import type { Folder, Id, Task } from '../_types';
+import TaskTitleTag from './task-title-tag';
 
 type SelectedTasksDrawerProps = {
   open: boolean;
@@ -161,6 +162,7 @@ export default function SelectedTasksDrawer({
 
                 <div className="min-w-0 flex-1">
                   <Typography.Text ellipsis={{ tooltip: task.text }} className="max-w-full">
+                    <TaskTitleTag title={task.title} />
                     {task.text}
                   </Typography.Text>
                 </div>

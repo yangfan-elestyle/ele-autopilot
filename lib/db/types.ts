@@ -14,6 +14,7 @@ export type FolderRow = {
 export type TaskRow = {
   id: Id;
   folder_id: Id;
+  title: string | null;
   text: string;
   sub_ids: Id[];
   created_at: string;
@@ -57,6 +58,7 @@ export type JobTaskRow = {
   job_id: Id;
   task_id: Id;
   task_index: number;
+  task_title: string | null;
   task_text: string;
   status: JobStatus;
   result: TaskActionResult | null;
@@ -141,6 +143,7 @@ export type JobTaskLiteRow = {
   job_id: Id;
   task_id: Id;
   task_index: number;
+  task_title: string | null;
   task_text: string;
   status: JobStatus;
   /** 只包含 summary 摘要，不含 steps/raw_history 等大数据 */

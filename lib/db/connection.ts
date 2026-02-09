@@ -31,11 +31,19 @@ function initSchema(db: Database) {
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       folder_id TEXT NOT NULL REFERENCES folders(id) ON DELETE RESTRICT,
+      title TEXT,
       text TEXT NOT NULL,
       sub_ids TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `);
+
+  // 迁移：为已有 tasks 表添加 title 列
+  try {
+    db.run(`ALTER TABLE tasks ADD COLUMN title TEXT`);
+  } catch {
+    // 列已存在则忽略
+  }
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders(parent_id);`);
   db.run(
@@ -72,6 +80,7 @@ function initSchema(db: Database) {
       job_id TEXT NOT NULL,
       task_id TEXT NOT NULL,
       task_index INTEGER NOT NULL,
+      task_title TEXT,
       task_text TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       result TEXT,
@@ -81,6 +90,13 @@ function initSchema(db: Database) {
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
     );
   `);
+
+  // 迁移：为已有 job_tasks 表添加 task_title 列
+  try {
+    db.run(`ALTER TABLE job_tasks ADD COLUMN task_title TEXT`);
+  } catch {
+    // 列已存在则忽略
+  }
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_job_tasks_job_id ON job_tasks(job_id);`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_job_tasks_status ON job_tasks(status);`);

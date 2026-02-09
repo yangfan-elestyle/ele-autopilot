@@ -3,10 +3,12 @@ import type { FormInstance } from 'antd';
 
 export type TaskModalMode = 'create' | 'edit';
 
+export type TaskFormValues = { title?: string; text: string };
+
 type TaskModalProps = {
   open: boolean;
   mode: TaskModalMode;
-  form: FormInstance<{ text: string }>;
+  form: FormInstance<TaskFormValues>;
   onCancel: () => void;
   onOk: () => void;
 };
@@ -23,6 +25,9 @@ export default function TaskModal({ open, mode, form, onCancel, onOk }: TaskModa
       width="80vw"
     >
       <Form form={form} layout="vertical">
+        <Form.Item label="标题（可选）" name="title">
+          <Input placeholder="简短标注，便于快速识别任务" allowClear />
+        </Form.Item>
         <Form.Item
           label="任务内容"
           name="text"
@@ -35,7 +40,7 @@ export default function TaskModal({ open, mode, form, onCancel, onOk }: TaskModa
                 : '请输入任务内容'
             }
             autoFocus
-            style={{ height: '60vh' }}
+            style={{ height: 'calc(60vh - 70px)' }}
           />
         </Form.Item>
       </Form>

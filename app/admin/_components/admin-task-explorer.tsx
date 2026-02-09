@@ -12,7 +12,8 @@ import FolderSider from './folder-sider';
 import SelectedTasksDrawer from './selected-tasks-drawer';
 import TaskChainModal from './task-chain-modal';
 import TaskContent from './task-content';
-import TaskModal from './task-modal';
+import TaskModal, { type TaskFormValues } from './task-modal';
+import TaskTitleTag from './task-title-tag';
 
 export default function AdminTaskExplorer() {
   const { message, modal } = App.useApp();
@@ -42,7 +43,7 @@ export default function AdminTaskExplorer() {
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [taskModalMode, setTaskModalMode] = useState<'create' | 'edit'>('create');
   const [taskModalTarget, setTaskModalTarget] = useState<Task | null>(null);
-  const [taskForm] = Form.useForm<{ text: string }>();
+  const [taskForm] = Form.useForm<TaskFormValues>();
 
   const [taskChainModalOpen, setTaskChainModalOpen] = useState(false);
   const [rootFolders, setRootFolders] = useState<Folder[]>([]);
@@ -246,14 +247,14 @@ export default function AdminTaskExplorer() {
     }
     setTaskModalMode('create');
     setTaskModalTarget(null);
-    taskForm.setFieldsValue({ text: '' });
+    taskForm.setFieldsValue({ title: '', text: '' });
     setTaskModalOpen(true);
   }
 
   function openEditTaskModal(task: Task) {
     setTaskModalMode('edit');
     setTaskModalTarget(task);
-    taskForm.setFieldsValue({ text: task.text });
+    taskForm.setFieldsValue({ title: task.title ?? '', text: task.text });
     setTaskModalOpen(true);
   }
 
@@ -261,6 +262,7 @@ export default function AdminTaskExplorer() {
     const values = await taskForm.validateFields();
     const text = values.text.trim();
     if (!text) return;
+    const title = values.title?.trim() || null;
 
     if (taskModalMode === 'create') {
       if (!selectedFolderId) return;
@@ -274,7 +276,7 @@ export default function AdminTaskExplorer() {
       if (parts.length > 1) {
         // 批量创建：反转顺序使最后一个先入库，列表按 created_at DESC 排序后保持原始输入顺序
         const reversed = [...parts].reverse();
-        const payload = reversed.map((t) => ({ text: t, folder_id: selectedFolderId }));
+        const payload = reversed.map((t) => ({ title, text: t, folder_id: selectedFolderId }));
         await apiJson<Task[]>('/api/admin/tasks', {
           method: 'POST',
           body: JSON.stringify(payload),
@@ -284,7 +286,7 @@ export default function AdminTaskExplorer() {
         // 单任务创建
         await apiJson<Task>('/api/admin/tasks', {
           method: 'POST',
-          body: JSON.stringify({ text, folder_id: selectedFolderId }),
+          body: JSON.stringify({ title, text, folder_id: selectedFolderId }),
         });
         message.success('已新建任务');
       }
@@ -297,7 +299,7 @@ export default function AdminTaskExplorer() {
     if (!taskModalTarget) return;
     const updated = await apiJson<Task>(`/api/admin/tasks/${taskModalTarget.id}`, {
       method: 'PUT',
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ title, text }),
     });
     setSelectedTasksById((prev) => (prev[updated.id] ? { ...prev, [updated.id]: updated } : prev));
     message.success('已更新任务');
@@ -410,6 +412,7 @@ export default function AdminTaskExplorer() {
         <div>
           <p>确定要执行以下任务吗？</p>
           <div className="mt-2 max-h-60 overflow-y-auto rounded bg-gray-100 p-2 text-sm whitespace-pre-wrap">
+            <TaskTitleTag title={task.title} />
             {task.text}
           </div>
           {task.sub_ids && task.sub_ids.length > 0 && (
@@ -677,10 +680,13 @@ export default function AdminTaskExplorer() {
         selectedTaskIds={taskChainViewSubIds}
         selectedTasksById={taskChainViewSubTasksById}
         folderById={folderById}
-        title={taskChainViewTask ? `任务链详情：${taskChainViewTask.text}` : '任务链详情'}
+        title={
+          taskChainViewTask
+            ? `任务链详情：${taskChainViewTask.title ? `[${taskChainViewTask.title}] ` : ''}${taskChainViewTask.text}`
+            : '任务链详情'
+        }
         readonly
       />
-
     </>
   );
 }

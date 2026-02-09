@@ -25,6 +25,7 @@ import { stopJobOnLocal } from '../../../_services/local-api';
 
 import JobTaskDetail from './job-task-detail';
 import type { JobLite, JobStatus, JobTask, JobTaskLite } from '../../../_types';
+import TaskTitleTag from '../../../_components/task-title-tag';
 
 const { Text, Paragraph } = Typography;
 
@@ -193,7 +194,7 @@ export default function JobDetailPanel({
   }
 
   if (!job) {
-    return <Alert type="error" message="无法加载 Job 信息" />;
+    return <Alert type="error" title="无法加载 Job 信息" />;
   }
 
   const config = statusConfig[job.status];
@@ -258,7 +259,7 @@ export default function JobDetailPanel({
           </Descriptions.Item>
         </Descriptions>
         {job.error && (
-          <Alert type="error" message="Job 错误" description={job.error} className="mt-3" />
+          <Alert type="error" title="Job 错误" description={job.error} className="mt-3" />
         )}
       </Card>
 
@@ -309,7 +310,10 @@ function JobTaskLabel({
       <Tag icon={config.icon} color={config.color} className="shrink-0">
         {config.text}
       </Tag>
-      <span className="min-w-0 flex-1 overflow-hidden text-sm break-all">{task.task_text}</span>
+      <span className="min-w-0 flex-1 overflow-hidden text-sm break-all">
+        <TaskTitleTag title={task.task_title} />
+        {task.task_text}
+      </span>
       {isRunning && jobIsActive && (
         <span className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
           <Popconfirm

@@ -60,6 +60,7 @@ function toJobTaskRow(dbRow: JobTaskDbRow): JobTaskRow {
     job_id: dbRow.job_id,
     task_id: dbRow.task_id,
     task_index: dbRow.task_index,
+    task_title: dbRow.task_title ?? null,
     task_text: dbRow.task_text,
     status: dbRow.status as JobStatus,
     result: parseResult(dbRow.result),
@@ -79,6 +80,7 @@ function toJobTaskLiteRow(dbRow: JobTaskDbRow): JobTaskLiteRow {
     job_id: dbRow.job_id,
     task_id: dbRow.task_id,
     task_index: dbRow.task_index,
+    task_title: dbRow.task_title ?? null,
     task_text: dbRow.task_text,
     status: dbRow.status as JobStatus,
     result_summary: result?.summary ?? null,
@@ -95,7 +97,7 @@ function toJobTaskLiteRow(dbRow: JobTaskDbRow): JobTaskLiteRow {
 function flattenTaskTree(
   taskId: Id,
   visited: Set<Id> = new Set(),
-): Array<{ id: Id; text: string }> {
+): Array<{ id: Id; title: string | null; text: string }> {
   if (visited.has(taskId)) return []; // 防止循环引用
   visited.add(taskId);
 
@@ -104,11 +106,11 @@ function flattenTaskTree(
 
   // 叶子节点：没有 sub_ids
   if (!task.sub_ids || task.sub_ids.length === 0) {
-    return [{ id: task.id, text: task.text }];
+    return [{ id: task.id, title: task.title ?? null, text: task.text }];
   }
 
   // 容器节点：递归展开所有 sub_ids
-  const result: Array<{ id: Id; text: string }> = [];
+  const result: Array<{ id: Id; title: string | null; text: string }> = [];
   for (const subId of task.sub_ids) {
     result.push(...flattenTaskTree(subId, visited));
   }
@@ -136,7 +138,7 @@ export function getJobWithTasks(id: Id): JobWithTasks | null {
 
   const taskRows = queryAll<JobTaskDbRow>(
     `
-      SELECT id, job_id, task_id, task_index, task_text, status, result, error, started_at, completed_at
+      SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
       WHERE job_id = ?
       ORDER BY task_index ASC
@@ -160,7 +162,7 @@ export function getJobWithTasksLite(id: Id): JobWithTasksLite | null {
 
   const taskRows = queryAll<JobTaskDbRow>(
     `
-      SELECT id, job_id, task_id, task_index, task_text, status, result, error, started_at, completed_at
+      SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
       WHERE job_id = ?
       ORDER BY task_index ASC
@@ -254,7 +256,7 @@ export function createJob(input: { task_id: Id; config?: JobConfig }): JobWithTa
     // 如果 task 本身就是叶子节点，直接使用它
     const task = getTaskById(taskId);
     if (task) {
-      flatTasks.push({ id: task.id, text: task.text });
+      flatTasks.push({ id: task.id, title: task.title ?? null, text: task.text });
     }
   }
 
@@ -273,8 +275,8 @@ export function createJob(input: { task_id: Id; config?: JobConfig }): JobWithTa
     const ft = flatTasks[i];
     const jtId = generateId();
     queryRun(
-      `INSERT INTO job_tasks (id, job_id, task_id, task_index, task_text, status) VALUES (?, ?, ?, ?, ?, ?)`,
-      [jtId, jobId, ft.id, i, ft.text, 'pending'],
+      `INSERT INTO job_tasks (id, job_id, task_id, task_index, task_title, task_text, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [jtId, jobId, ft.id, i, ft.title, ft.text, 'pending'],
     );
   }
 
@@ -334,7 +336,7 @@ export function deleteJobById(id: Id): number {
 export function getJobTasksByJobId(jobId: Id): JobTaskRow[] {
   const rows = queryAll<JobTaskDbRow>(
     `
-      SELECT id, job_id, task_id, task_index, task_text, status, result, error, started_at, completed_at
+      SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
       WHERE job_id = ?
       ORDER BY task_index ASC
@@ -351,7 +353,7 @@ export function getJobTasksByJobId(jobId: Id): JobTaskRow[] {
 export function getJobTaskByIndex(jobId: Id, taskIndex: number): JobTaskRow | null {
   const row = queryGet<JobTaskDbRow>(
     `
-      SELECT id, job_id, task_id, task_index, task_text, status, result, error, started_at, completed_at
+      SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
       WHERE job_id = ? AND task_index = ?
     `,
@@ -377,7 +379,7 @@ export function updateJobTaskByIndex(
 ): JobTaskRow | null {
   const row = queryGet<JobTaskDbRow>(
     `
-      SELECT id, job_id, task_id, task_index, task_text, status, result, error, started_at, completed_at
+      SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
       WHERE job_id = ? AND task_index = ?
     `,
@@ -416,7 +418,7 @@ export function updateJobTaskByIndex(
 
   const updated = queryGet<JobTaskDbRow>(
     `
-      SELECT id, job_id, task_id, task_index, task_text, status, result, error, started_at, completed_at
+      SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
       WHERE id = ?
     `,
