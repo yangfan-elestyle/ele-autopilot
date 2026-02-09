@@ -36,7 +36,7 @@ export default function TaskModal({ open, mode, form, onCancel, onOk }: TaskModa
           <Input.TextArea
             placeholder={
               mode === 'create'
-                ? '请输入任务内容\n\n提示：使用 --- 分隔可批量创建多个任务'
+                ? '请输入任务内容\n\n或者批量创建，示例如下(通过 %%% 分割标题与内容，通过 +++ 分割多任务)：\nTitleA\n%%%\nContentA\n+++\nTitleB\n%%%\nContentB'
                 : '请输入任务内容'
             }
             autoFocus

@@ -267,16 +267,27 @@ export default function AdminTaskExplorer() {
     if (taskModalMode === 'create') {
       if (!selectedFolderId) return;
 
-      // 通过 --- 分割多任务（3个或更多 - 字符独占一行）
+      // 通过 +++ 分割多任务（3个或更多 + 字符独占一行）
       const parts = text
-        .split(/^-{3,}$/m)
+        .split(/^\s*\+{3,}\s*$/m)
         .map((p) => p.trim())
         .filter(Boolean);
 
       if (parts.length > 1) {
         // 批量创建：反转顺序使最后一个先入库，列表按 created_at DESC 排序后保持原始输入顺序
         const reversed = [...parts].reverse();
-        const payload = reversed.map((t) => ({ title, text: t, folder_id: selectedFolderId }));
+        const payload = reversed.map((part) => {
+          // 通过 %%% 分割标题与内容（3个或更多 % 字符独占一行）
+          const segments = part.split(/^\s*%{3,}\s*$/m).map((s) => s.trim());
+          if (segments.length >= 2) {
+            return {
+              title: segments[0] || null,
+              text: segments.slice(1).join('\n'),
+              folder_id: selectedFolderId,
+            };
+          }
+          return { title, text: part, folder_id: selectedFolderId };
+        });
         await apiJson<Task[]>('/api/admin/tasks', {
           method: 'POST',
           body: JSON.stringify(payload),
