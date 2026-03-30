@@ -356,6 +356,7 @@ export default function AdminTaskExplorer() {
     }
     taskChainForm.resetFields();
     void loadRootFolders();
+    setSelectedTasksOpen(false);
     setTaskChainModalOpen(true);
   }
 
