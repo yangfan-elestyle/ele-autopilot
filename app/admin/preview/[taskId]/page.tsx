@@ -1,7 +1,7 @@
 'use client';
 
 import { ReloadOutlined } from '@ant-design/icons';
-import { Button, Layout, Space, Spin, Typography } from 'antd';
+import { Button, ConfigProvider, Layout, Space, Spin, Typography } from 'antd';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -9,6 +9,7 @@ import JobDetailPanel from './_components/job-detail-panel';
 import JobHistoryList from './_components/job-history-list';
 import type { JobListItem, JobLite, JobTask, Task } from '../../_types';
 import TaskTitleTag from '../../_components/task-title-tag';
+import { adminTheme } from '../../_theme/antd-theme';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -135,54 +136,56 @@ export default function PreviewPage() {
   }
 
   return (
-    <Layout className="h-screen">
-      <Header className="flex h-auto min-h-16 items-center gap-4 bg-white px-4 py-2 shadow-sm">
-        <Title level={5} className="!mb-0 shrink-0">
-          任务执行历史
-        </Title>
-        {task && (
-          <div
-            className="max-h-20 min-w-0 flex-1 overflow-auto text-sm whitespace-pre-wrap text-gray-500"
-            title={task.text}
-          >
-            <TaskTitleTag title={task.title} />
-            {task.text}
-          </div>
-        )}
-        <Button
-          icon={<ReloadOutlined />}
-          loading={refreshing}
-          onClick={handleRefresh}
-          className="shrink-0"
-        >
-          刷新
-        </Button>
-      </Header>
-
-      <Layout>
-        <Sider width={320} theme="light" className="border-r border-gray-200">
-          <JobHistoryList
-            jobs={jobs}
-            selectedJobId={selectedJobId}
-            onSelect={setSelectedJobId}
-            loading={refreshing}
-          />
-        </Sider>
-
-        <Content className="overflow-auto bg-gray-50 p-4">
-          {selectedJob ? (
-            <JobDetailPanel
-              jobId={selectedJob.id}
-              fetchJobDetail={fetchJobDetail}
-              fetchJobTaskDetail={fetchJobTaskDetail}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-gray-400">
-              {jobs.length === 0 ? '暂无执行历史' : '请选择一个执行记录'}
+    <ConfigProvider theme={adminTheme}>
+      <Layout className="h-screen">
+        <Header className="flex h-auto min-h-16 items-center gap-4 bg-white px-4 py-2 shadow-sm">
+          <Title level={5} className="!mb-0 shrink-0">
+            任务执行历史
+          </Title>
+          {task && (
+            <div
+              className="max-h-20 min-w-0 flex-1 overflow-auto text-sm whitespace-pre-wrap text-gray-500"
+              title={task.text}
+            >
+              <TaskTitleTag title={task.title} />
+              {task.text}
             </div>
           )}
-        </Content>
+          <Button
+            icon={<ReloadOutlined />}
+            loading={refreshing}
+            onClick={handleRefresh}
+            className="shrink-0"
+          >
+            刷新
+          </Button>
+        </Header>
+
+        <Layout>
+          <Sider width={320} theme="light" className="border-r border-gray-200">
+            <JobHistoryList
+              jobs={jobs}
+              selectedJobId={selectedJobId}
+              onSelect={setSelectedJobId}
+              loading={refreshing}
+            />
+          </Sider>
+
+          <Content className="overflow-auto bg-gray-50 p-4">
+            {selectedJob ? (
+              <JobDetailPanel
+                jobId={selectedJob.id}
+                fetchJobDetail={fetchJobDetail}
+                fetchJobTaskDetail={fetchJobTaskDetail}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-gray-400">
+                {jobs.length === 0 ? '暂无执行历史' : '请选择一个执行记录'}
+              </div>
+            )}
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </ConfigProvider>
   );
 }

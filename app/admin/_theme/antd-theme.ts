@@ -10,4 +10,11 @@ export const adminTheme: ThemeConfig = {
     colorSplit: '#f0f0f0',
     borderRadius: 6,
   },
+  components: {
+    Layout: {
+      headerBg: '#ffffff',
+      lightSiderBg: '#ffffff',
+      bodyBg: '#f0f2f5',
+    },
+  },
 };

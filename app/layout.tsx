@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import './globals.css';
@@ -18,13 +18,17 @@ export const metadata: Metadata = {
   description: 'Ele Autopilot',
 };
 
+export const viewport: Viewport = {
+  colorScheme: 'light',
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ colorScheme: 'light' }}>
       {process.env.NODE_ENV === 'development' && (
         <head>
           {/* React DevTools (Standalone) Connection */}
