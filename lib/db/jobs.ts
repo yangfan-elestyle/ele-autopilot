@@ -74,7 +74,6 @@ function toJobTaskRow(dbRow: JobTaskDbRow): JobTaskRow {
  * 转换为轻量版 JobTaskRow（只包含 summary，不含完整 result）
  */
 function toJobTaskLiteRow(dbRow: JobTaskDbRow): JobTaskLiteRow {
-  const result = parseResult(dbRow.result);
   return {
     id: dbRow.id,
     job_id: dbRow.job_id,
@@ -83,7 +82,7 @@ function toJobTaskLiteRow(dbRow: JobTaskDbRow): JobTaskLiteRow {
     task_title: dbRow.task_title ?? null,
     task_text: dbRow.task_text,
     status: dbRow.status as JobStatus,
-    result_summary: result?.summary ?? null,
+    result_summary: null,
     error: dbRow.error,
     started_at: dbRow.started_at,
     completed_at: dbRow.completed_at,
@@ -160,9 +159,13 @@ export function getJobWithTasksLite(id: Id): JobWithTasksLite | null {
   const job = getJobById(id);
   if (!job) return null;
 
-  const taskRows = queryAll<JobTaskDbRow>(
+  const taskRows = queryAll<
+    Omit<JobTaskDbRow, 'result'> & {
+      result?: null;
+    }
+  >(
     `
-      SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
+      SELECT id, job_id, task_id, task_index, task_title, task_text, status, error, started_at, completed_at
       FROM job_tasks
       WHERE job_id = ?
       ORDER BY task_index ASC
@@ -172,7 +175,7 @@ export function getJobWithTasksLite(id: Id): JobWithTasksLite | null {
 
   return {
     ...job,
-    tasks: taskRows.map(toJobTaskLiteRow),
+    tasks: taskRows.map((row) => toJobTaskLiteRow({ ...row, result: null })),
   };
 }
 

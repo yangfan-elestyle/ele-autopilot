@@ -54,6 +54,19 @@ export default function JobTaskDetail({ taskLite, taskDetail, loading }: JobTask
   const summary = fullResult?.summary ?? taskLite.result_summary;
   const error = taskDetail?.error ?? taskLite.error;
 
+  if (loading && !summary) {
+    return (
+      <div className="space-y-4 bg-gray-50 p-4">
+        <Card size="small" title="执行详情" className="bg-white">
+          <div className="flex items-center justify-center py-8">
+            <Spin indicator={<LoadingOutlined spin />} />
+            <span className="ml-2 text-gray-400">加载详情中...</span>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 bg-gray-50 p-4">
       {/* 错误信息 */}
