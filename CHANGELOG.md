@@ -2,6 +2,17 @@
 
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) + [SemVer](https://semver.org/).
 
+## [0.2.2] - 2026-05-18
+
+### Removed
+
+- `docs/next-llms.txt` / `docs/next-llms-full.txt`: Next.js 离线文档镜像, 项目已不再依赖 Next.js, 留着会误导后续 AI agent. 总计 ~3MB.
+
+### Changed
+
+- `docs/AGENTS.md` 重写: 删除 Next.js App Router 相关引导, 替换为 React Router v7 (Framework mode) 上下文; 离线检索资料保留 Bun + Ant Design 两套.
+- `deploy.md` 修正注释 "验证 standalone 启动" → "验证生产构建启动" (Next.js 残留措辞).
+
 ## [0.2.1] - 2026-05-18
 
 ### Changed
@@ -45,6 +56,7 @@
 - DB schema 迁移机制: `initSchema` 内 `ALTER TABLE ... ADD COLUMN` (try/catch 包裹) 幂等处理, 保证已有数据不被破坏.
 - `tag (v*)` 触发 GitHub Actions: 构建 Next.js `standalone` 产物, 打包 `linux-x64` tarball, 生成 SHA256 `checksums.txt`, 发布 GitHub Release.
 
+[0.2.2]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.2
 [0.2.1]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.1
 [0.2.0]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.0
 [0.1.0]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.1.0

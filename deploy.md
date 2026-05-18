@@ -8,7 +8,7 @@ AI 改完代码主动执行. push `v*` tag 触发 Actions 构建发布 (React Ro
 bun install --frozen-lockfile
 bun run lint
 bun run build
-# 验证 standalone 启动 (用临时端口避免占用 dev)
+# 验证生产构建启动 (用临时端口避免占用 dev)
 HOSTNAME=0.0.0.0 PORT=3001 SQLITE_DB_PATH=/tmp/ele-autopilot-verify.sqlite \
   bun run start
 ```
