@@ -9,7 +9,12 @@ GitHub 仓库 Secrets:
 - `CLOUDFLARE_API_TOKEN`: Workers / D1 / R2 编辑权限 ([创建方式](https://dash.cloudflare.com/profile/api-tokens) → "Edit Cloudflare Workers" 模板).
 - `CLOUDFLARE_ACCOUNT_ID`: Account ID (Cloudflare dashboard 主页右栏).
 
-D1 database (`ele-autopilot`) / R2 bucket (`ele-autopilot-screenshots`) 首次部署 Actions 自动创建, 已存在则复用.
+D1 database (`ele-autopilot`) / R2 bucket (`ele-autopilot-screenshots`) 需手动一次性创建; 真实 `database_id` 已写入 `wrangler.jsonc`. workflow 不再自动创建. 新环境部署前先执行:
+
+```bash
+bunx wrangler d1 create ele-autopilot     # 拿到 database_id 替换 wrangler.jsonc
+bunx wrangler r2 bucket create ele-autopilot-screenshots
+```
 
 ## 1. 本地验证
 
@@ -47,11 +52,9 @@ Actions 流程:
 
 1. 校验 tag = package.json version.
 2. `bun install --frozen-lockfile`.
-3. 探测 / 创建 D1 database, 把真实 `database_id` 写回 `wrangler.jsonc` (placeholder 替换).
-4. 探测 / 创建 R2 bucket.
-5. `bun run build`.
-6. `wrangler d1 migrations apply ele-autopilot --remote`.
-7. `wrangler deploy`.
+3. `bun run build`.
+4. `wrangler d1 migrations apply ele-autopilot --remote`.
+5. `wrangler deploy`.
 
 成功后 Worker URL: `https://ele-autopilot.<account-subdomain>.workers.dev` (或绑定的自定义域名).
 

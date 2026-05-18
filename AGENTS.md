@@ -31,7 +31,7 @@ React Router v7 (Framework mode) Web 应用 — QA 任务管理后台. 文件夹
 
 ## Key Files
 
-- `wrangler.jsonc`: Workers 配置 — `main: ./workers/app.ts`, `compatibility_flags: ["nodejs_compat"]`, d1 binding `DB`, r2 binding `SCREENSHOTS`. `database_id` 在 Actions 部署时由真实 ID 替换.
+- `wrangler.jsonc`: Workers 配置 — `main: ./workers/app.ts`, `compatibility_flags: ["nodejs_compat"]`, d1 binding `DB` (含真实 `database_id`), r2 binding `SCREENSHOTS`.
 - `react-router.config.ts`: `ssr: true`, `appDirectory: 'app'`, `future.v8_viteEnvironmentApi: true` (与 `@cloudflare/vite-plugin` 集成必需).
 - `vite.config.ts`: `cloudflare({ viteEnvironment: { name: 'ssr' } })` + `tailwindcss()` + `reactRouter()`; `@/*` 别名通过 Vite 内置 `resolve.tsconfigPaths`.
 - `worker-configuration.d.ts`: `wrangler types` 生成, 含 `Env` (DB / SCREENSHOTS) + runtime types. **不要手编辑**, 改 `wrangler.jsonc` 后跑 `bun run typegen`.
@@ -100,7 +100,8 @@ bun run format         # prettier --write .
 ## Release
 
 - 触发: push `v*` tag. workflow: `.github/workflows/release.yml`.
-- 流程: 校验版本 → 探测 / 创建 D1 + R2 → build → migrations apply --remote → `wrangler deploy`.
+- 流程: 校验 `package.json#version` = tag → bun install → build → `wrangler d1 migrations apply ele-autopilot --remote` → `wrangler deploy`.
+- D1 (`ele-autopilot`) / R2 (`ele-autopilot-screenshots`) 已由人工预先创建, workflow 不再探测 / 创建.
 - 完整步骤 / amend 场景: [deploy.md](./deploy.md).
 
 ## Security & Configuration

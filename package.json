@@ -1,6 +1,6 @@
 {
   "name": "ele-autopilot",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,7 +17,6 @@
     "@ant-design/cssinjs": "^2.1.2",
     "@ant-design/icons": "^6.1.1",
     "antd": "^6.3.4",
-    "isbot": "^5.1.31",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-router": "^7.15.1"

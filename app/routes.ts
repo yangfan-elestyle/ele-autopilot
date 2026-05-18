@@ -21,6 +21,6 @@ export default [
   route('api/jobs/:id/callback/complete', 'routes/api.jobs.$id.callback.complete.tsx'),
   route('api/jobs/:id/callback/task', 'routes/api.jobs.$id.callback.task.tsx'),
 
-  // Static screenshot files (落盘到 data/screenshots/, URL 形如 /screenshots/{job_task_id}/{i}.png)
+  // Static screenshot files (R2 bucket ele-autopilot-screenshots, URL 形如 /screenshots/{job_task_id}/{i}.png)
   route('screenshots/*', 'routes/screenshots.$.tsx'),
 ] satisfies RouteConfig;

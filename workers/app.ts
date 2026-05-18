@@ -4,7 +4,7 @@ import { runWithBindings } from '@/lib/bindings';
 
 declare global {
   // 由 wrangler types 注入完整 Env 类型 (含 DB / SCREENSHOTS bindings)
-  interface CloudflareEnvironment extends Env {}
+  type CloudflareEnvironment = Env;
 }
 
 declare module 'react-router' {

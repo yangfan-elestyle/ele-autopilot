@@ -2,6 +2,18 @@
 
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) + [SemVer](https://semver.org/).
 
+## [0.3.1] - 2026-05-19
+
+### Fixed
+
+- 文档 (`AGENTS.md` / `deploy.md` / `CHANGELOG.md`) 与 `release.yml` 实际行为对齐: 移除 "Actions 自动创建 / 探测 D1 + R2" 与 "`database_id` 部署时替换" 等承诺 — workflow 实际只跑 `migrations apply --remote` + `wrangler deploy`, D1 / R2 需手动一次性创建并把 `database_id` 写入 `wrangler.jsonc`.
+- `app/routes.ts` 中 `/screenshots/*` 路由的过时注释 ("落盘到 data/screenshots/") → 改为指向 R2 bucket.
+- `workers/app.ts`: `interface CloudflareEnvironment extends Env {}` 触发 `@typescript-eslint/no-empty-object-type` lint error (v0.3.0 引入未察觉, release.yml 不跑 lint 故漏掉) — 改为 `type CloudflareEnvironment = Env;` (该别名仅 `workers/app.ts` 自用, 无 declaration merging 需求).
+
+### Removed
+
+- `app/entry.server.tsx` 中 `isbot` 死代码分支 — 当前实现走全量 `await new Response(body).text()` 缓冲注入 cssinjs `<style>`, bot / 普通 UA 路径完全一致, `await body.allReady` 为冗余 await. 同步从 `package.json` 移除 `isbot` 依赖.
+
 ## [0.3.0] - 2026-05-18
 
 ### Changed
@@ -123,6 +135,7 @@
 - DB schema 迁移机制: `initSchema` 内 `ALTER TABLE ... ADD COLUMN` (try/catch 包裹) 幂等处理, 保证已有数据不被破坏.
 - `tag (v*)` 触发 GitHub Actions: 构建 Next.js `standalone` 产物, 打包 `linux-x64` tarball, 生成 SHA256 `checksums.txt`, 发布 GitHub Release.
 
+[0.3.1]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.3.1
 [0.3.0]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.3.0
 [0.2.5]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.5
 [0.2.4]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.4
