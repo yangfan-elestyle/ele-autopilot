@@ -1,6 +1,6 @@
 {
   "name": "ele-autopilot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,7 +18,6 @@
     "@react-router/serve": "^7.15.1",
     "antd": "^6.3.4",
     "better-sqlite3": "^12.10.0",
-    "isbot": "^5.1.40",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-router": "^7.15.1"

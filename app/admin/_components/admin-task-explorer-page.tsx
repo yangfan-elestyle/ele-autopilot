@@ -1,5 +1,3 @@
-'use client';
-
 import { App, ConfigProvider, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 

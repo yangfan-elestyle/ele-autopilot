@@ -2,6 +2,14 @@
 
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) + [SemVer](https://semver.org/).
 
+## [0.2.1] - 2026-05-18
+
+### Changed
+
+- `app/entry.server.tsx` 移除残留的 `isbot` UA 分支与 `readyOption` 三元死代码 — antd cssinjs `extractStyle` 强依赖完整渲染, 始终走 `onAllReady`. 同步从 `package.json` 移除显式 `isbot` 依赖 (RR7 dev 仍间接持有).
+- 移除 5 个组件文件 (`admin-task-explorer-page` / `use-agent-connection` / `preview/_components/job-*`) 顶部残留的 `'use client';` 指令 — RR7 无 RSC 边界, 无意义.
+- `AGENTS.md` 修正 `vite.config.ts` 描述: 实为 `reactRouter()` + `tailwindcss()` 两 plugin, `@/*` 别名走 Vite 8 内置 `resolve.tsconfigPaths` 读 `tsconfig.json#paths` 解析, 无独立 plugin.
+
 ## [0.2.0] - 2026-05-18
 
 ### Changed
@@ -37,5 +45,6 @@
 - DB schema 迁移机制: `initSchema` 内 `ALTER TABLE ... ADD COLUMN` (try/catch 包裹) 幂等处理, 保证已有数据不被破坏.
 - `tag (v*)` 触发 GitHub Actions: 构建 Next.js `standalone` 产物, 打包 `linux-x64` tarball, 生成 SHA256 `checksums.txt`, 发布 GitHub Release.
 
+[0.2.1]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.1
 [0.2.0]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.0
 [0.1.0]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.1.0

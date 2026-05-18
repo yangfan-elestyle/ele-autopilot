@@ -28,7 +28,7 @@ React Router v7 (Framework mode) Web 应用 — QA 任务管理后台. 文件夹
 ## Key Files
 
 - `react-router.config.ts`: `ssr: true`, `appDirectory: 'app'`, `buildDirectory: 'build'`.
-- `vite.config.ts`: `reactRouter()` + `tailwindcss()` + `tsconfigPaths()` 三 plugin.
+- `vite.config.ts`: `reactRouter()` + `tailwindcss()` 两 plugin; `@/*` 别名通过 Vite 8 内置 `resolve.tsconfigPaths` 读 `tsconfig.json#compilerOptions.paths` 解析.
 - `app/routes.ts`: 路由总表 (新增页面 / API 必须同步登记).
 - `lib/db/connection.ts`: 数据库连接 / 建表 / 初始化 / 迁移. 单例存于 `globalThis.__eleAutopilotDb`.
 - `lib/db/folders.ts` / `tasks.ts` / `jobs.ts` / `settings.ts`: 各资源 CRUD (同步 API).

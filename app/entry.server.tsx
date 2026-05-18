@@ -2,8 +2,6 @@ import { PassThrough } from 'node:stream';
 
 import { createCache, extractStyle, StyleProvider } from '@ant-design/cssinjs';
 import { createReadableStreamFromReadable } from '@react-router/node';
-import { isbot } from 'isbot';
-import type { RenderToPipeableStreamOptions } from 'react-dom/server';
 import { renderToPipeableStream } from 'react-dom/server';
 import type { EntryContext } from 'react-router';
 import { ServerRouter } from 'react-router';
@@ -24,23 +22,19 @@ export default function handleRequest(
 
   return new Promise((resolve, reject) => {
     let shellRendered = false;
-    const userAgent = request.headers.get('user-agent');
-
-    // Use onAllReady so antd cssinjs cache is fully populated before we flush styles.
-    const readyOption: keyof RenderToPipeableStreamOptions =
-      (userAgent && isbot(userAgent)) || routerContext.isSpaMode ? 'onAllReady' : 'onAllReady';
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined = setTimeout(
       () => abort(),
       streamTimeout + 1000,
     );
 
+    // antd cssinjs requires the full tree to render before extractStyle().
     const { pipe, abort } = renderToPipeableStream(
       <StyleProvider cache={cache}>
         <ServerRouter context={routerContext} url={request.url} />
       </StyleProvider>,
       {
-        [readyOption]() {
+        onAllReady() {
           shellRendered = true;
 
           // Inject antd cssinjs styles into <head> of the rendered HTML by
