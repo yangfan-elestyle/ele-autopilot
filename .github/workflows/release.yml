@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Assemble release bundle
+        run: |
+          set -euo pipefail
+          BUNDLE_DIR="ele-autopilot-${GITHUB_REF_NAME}-linux-x64"
+          mkdir -p "$BUNDLE_DIR"
+          cp -a .next/standalone/. "$BUNDLE_DIR/"
+          mkdir -p "$BUNDLE_DIR/.next/static"
+          cp -a .next/static/. "$BUNDLE_DIR/.next/static/"
+          if [ -d public ]; then
+            mkdir -p "$BUNDLE_DIR/public"
+            cp -a public/. "$BUNDLE_DIR/public/"
+          fi
+          tar -czf "$BUNDLE_DIR.tar.gz" "$BUNDLE_DIR"
+          ls -lh "$BUNDLE_DIR.tar.gz"
+          echo "BUNDLE_TARBALL=$BUNDLE_DIR.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.BUNDLE_TARBALL }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
