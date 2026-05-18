@@ -427,7 +427,7 @@ function StepDetail({ step }: { step: StepInfo }) {
           <div className="mt-1">
             <Image
               src={
-                step.thinking_image.startsWith('data:')
+                /^(data:|https?:\/\/|\/)/.test(step.thinking_image)
                   ? step.thinking_image
                   : `data:image/png;base64,${step.thinking_image}`
               }

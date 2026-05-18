@@ -1,8 +1,14 @@
 import type { ActionFunctionArgs } from 'react-router';
 
-import { getJobById, syncJobStatusFromTasks, updateJobTaskByIndex } from '@/lib/db';
+import {
+  getJobById,
+  getJobTaskByIndex,
+  syncJobStatusFromTasks,
+  updateJobTaskByIndex,
+} from '@/lib/db';
 import type { JobStatus, TaskActionResult } from '@/lib/db';
 import { isValidId } from '@/lib/db/utils';
+import { externalizeScreenshots } from '@/lib/screenshots';
 import { jsonResponse, methodNotAllowed } from '@/app/lib/api-shared';
 
 const VALID_STATUSES: JobStatus[] = ['pending', 'running', 'completed', 'failed'];
@@ -56,10 +62,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const startedAt = typeof payload.started_at === 'string' ? payload.started_at : undefined;
   const completedAt = typeof payload.completed_at === 'string' ? payload.completed_at : undefined;
 
+  // 把 result.steps[].thinking_image 的 base64 落盘到文件系统, 字段值替换成 /screenshots/{job_task_id}/{i}.png
+  // 落盘失败 (磁盘满 / 权限) 会向上抛, 由下方 catch 转 500; base64 不会被原样塞进 DB
+  const existing = result ? getJobTaskByIndex(rawId, taskIndex) : null;
+  const processedResult = existing ? externalizeScreenshots(existing.id, result ?? null) : result;
+
   try {
     const updated = updateJobTaskByIndex(rawId, taskIndex, {
       status: status as JobStatus,
-      result: result ?? null,
+      result: processedResult ?? null,
       error,
       started_at: startedAt,
       completed_at: completedAt,

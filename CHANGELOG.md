@@ -2,6 +2,25 @@
 
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) + [SemVer](https://semver.org/).
 
+## [0.2.5] - 2026-05-18
+
+### Removed
+
+- `job_tasks.result.steps[].thinking_image` 不再以 base64 字符串内嵌存储 — 原设计文档 (`todos/link-serve-client.md:465`) 写明 "截图路径", 但实现意外走了 base64, 导致单 task result 平均 14.5 MB (规划上限 500 KB 的 29×, 极端 task 530 步达 230 MB / 单 task).
+
+### Added
+
+- `lib/screenshots.ts`: base64 解码 + 落盘 + path 替换工具, 含路径越狱防护 (`resolveScreenshotAbsPath`).
+- `app/routes/screenshots.$.tsx`: 静态 resource route, URL `/screenshots/{job_task_id}/{i}.png` 直接读 `data/screenshots/`, 返回 `image/png` + immutable 缓存头.
+- 环境变量 `SCREENSHOTS_DIR` (默认 `data/screenshots`) 自定义截图根目录, 沿用 `SQLITE_DB_PATH` 同款思路, 部署可指向持久卷. 未来上 R2 / S3 时只改 `lib/screenshots.ts` 落盘逻辑, DB / UI 层 (存的是 URL 字符串) 无需变动.
+- `scripts/migrate-screenshots-to-fs.mjs`: 一次性历史数据迁移脚本, 把存量 base64 抽出落盘并 `UPDATE` result. 幂等可重跑, 支持 `--vacuum`. 用 ID 列表流式逐行处理避免 OOM (5+ GB 数据).
+
+### Changed
+
+- `api.jobs.$id.callback.task.tsx` 收到 callback 后, 先 `getJobTaskByIndex` 拿 job_task id, 调用 `externalizeScreenshots` 把 `result.steps[].thinking_image` 的 base64 抽出落盘到 `data/screenshots/{id}/{i}.png`, 字段值替换为 `/screenshots/{id}/{i}.png` 再入 SQLite. Local 端契约不变, 仍传 base64 (因为 local 与 server 跨机部署, local path 在 server 上访问不到).
+- `app/admin/preview/_components/job-task-detail.tsx` UI 渲染兼容三种格式: `data:` / `http(s)://` / `/` 直接当 URL, 否则按旧数据 raw base64 兜底加前缀.
+- 历史数据迁移: 5.5 GB base64 截图全量抽出 → `data/screenshots/` (4.1 GB binary PNG, 10,316 张图) + `app.sqlite` 从 5.8 GB → **387 MB** (-93%). 迁移 18.6s + VACUUM 2.1s.
+
 ## [0.2.4] - 2026-05-18
 
 ### Removed
@@ -73,6 +92,7 @@
 - DB schema 迁移机制: `initSchema` 内 `ALTER TABLE ... ADD COLUMN` (try/catch 包裹) 幂等处理, 保证已有数据不被破坏.
 - `tag (v*)` 触发 GitHub Actions: 构建 Next.js `standalone` 产物, 打包 `linux-x64` tarball, 生成 SHA256 `checksums.txt`, 发布 GitHub Release.
 
+[0.2.5]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.5
 [0.2.4]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.4
 [0.2.3]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.3
 [0.2.2]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.2
