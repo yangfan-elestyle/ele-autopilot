@@ -33,9 +33,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
-# sqlite (local dev)
+# sqlite (legacy local dev, pre-Cloudflare)
 /data/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
 *.db
+
+# Cloudflare Wrangler local state (miniflare D1 / R2 / KV)
+/.wrangler/
+.dev.vars
+.dev.vars.*

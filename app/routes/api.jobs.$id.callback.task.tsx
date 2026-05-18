@@ -25,7 +25,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return envelope(400, 'Invalid job id', null, 400);
   }
 
-  const job = getJobById(rawId);
+  const job = await getJobById(rawId);
   if (!job) {
     return envelope(404, 'Job not found', null, 404);
   }
@@ -62,13 +62,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const startedAt = typeof payload.started_at === 'string' ? payload.started_at : undefined;
   const completedAt = typeof payload.completed_at === 'string' ? payload.completed_at : undefined;
 
-  // 把 result.steps[].thinking_image 的 base64 落盘到文件系统, 字段值替换成 /screenshots/{job_task_id}/{i}.png
-  // 落盘失败 (磁盘满 / 权限) 会向上抛, 由下方 catch 转 500; base64 不会被原样塞进 DB
-  const existing = result ? getJobTaskByIndex(rawId, taskIndex) : null;
-  const processedResult = existing ? externalizeScreenshots(existing.id, result ?? null) : result;
+  // 把 result.steps[].thinking_image 的 base64 落盘到 R2, 字段值替换成 /screenshots/{job_task_id}/{i}.png
+  const existing = result ? await getJobTaskByIndex(rawId, taskIndex) : null;
+  const processedResult = existing
+    ? await externalizeScreenshots(existing.id, result ?? null)
+    : result;
 
   try {
-    const updated = updateJobTaskByIndex(rawId, taskIndex, {
+    const updated = await updateJobTaskByIndex(rawId, taskIndex, {
       status: status as JobStatus,
       result: processedResult ?? null,
       error,
@@ -80,7 +81,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return envelope(400, 'Invalid task_index', null, 400);
     }
 
-    syncJobStatusFromTasks(rawId);
+    await syncJobStatusFromTasks(rawId);
 
     return envelope(0, 'success', null);
   } catch (err) {

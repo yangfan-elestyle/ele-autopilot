@@ -44,7 +44,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    reorderFolders(folderIds, parentId);
+    await reorderFolders(folderIds, parentId);
     return jsonResponse({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

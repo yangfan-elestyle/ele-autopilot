@@ -22,7 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (filterIds) {
     const ids = Array.from(new Set(filterIds.filter(isValidId)));
-    const data = getTasksByIds(ids);
+    const data = await getTasksByIds(ids);
     const start = 0;
     const end = Math.max(0, data.length - 1);
     const headers = withContentRange('tasks', start, end, data.length);
@@ -34,14 +34,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const limit = Math.max(1, Math.trunc(end) - Math.trunc(start) + 1);
   const offset = Math.max(0, Math.trunc(start));
 
-  const data = listTasksPage({
+  const data = await listTasksPage({
     limit,
     offset,
     sort: sortField,
     order: sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC',
     filter,
   });
-  const total = countTasks(filter);
+  const total = await countTasks(filter);
   const actualEnd = Math.max(offset, offset + data.length - 1);
   const headers = withContentRange('tasks', offset, actualEnd, total);
   return new Response(JSON.stringify(data), { headers });
@@ -75,7 +75,7 @@ export async function action({ request }: ActionFunctionArgs) {
         inputs.push({ title, text, folder_id });
       }
 
-      const tasks = createTasks(inputs);
+      const tasks = await createTasks(inputs);
       return jsonResponse(tasks, { status: 201 });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -106,7 +106,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return jsonError('`folder_id` is required', 400);
     }
 
-    const task = createTask({ title, text, folder_id, sub_ids });
+    const task = await createTask({ title, text, folder_id, sub_ids });
     return jsonResponse(task, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

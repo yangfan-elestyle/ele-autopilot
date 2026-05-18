@@ -1,8 +1,8 @@
 import type { Id, ListPageArgs, TaskDbRow, TaskRow } from './types';
 import { escapeLike, isRecord, generateId, isValidId, queryAll, queryGet, queryRun } from './utils';
 
-function ensureFolderExists(folderId: Id) {
-  const exists = queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM folders WHERE id = ?`, [folderId]);
+async function ensureFolderExists(folderId: Id) {
+  const exists = await queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM folders WHERE id = ?`, [folderId]);
   if (!exists) throw new Error('Invalid folder_id');
 }
 
@@ -52,8 +52,8 @@ function buildTasksFilterParts(filter: Record<string, unknown>) {
   return { where, params, withClause: '' };
 }
 
-export function getTaskById(id: Id) {
-  const row = queryGet<TaskDbRow>(
+export async function getTaskById(id: Id) {
+  const row = await queryGet<TaskDbRow>(
     `
       SELECT t.id, t.folder_id, t.title, t.text, t.sub_ids, t.created_at
       FROM tasks t
@@ -65,11 +65,11 @@ export function getTaskById(id: Id) {
   return toTaskRow(row);
 }
 
-export function getTasksByIds(ids: Id[]) {
+export async function getTasksByIds(ids: Id[]) {
   const unique = Array.from(new Set(ids.filter(isValidId)));
   if (unique.length === 0) return [];
   const placeholders = unique.map(() => '?').join(',');
-  const rows = queryAll<TaskDbRow>(
+  const rows = await queryAll<TaskDbRow>(
     `
       SELECT t.id, t.folder_id, t.title, t.text, t.sub_ids, t.created_at
       FROM tasks t
@@ -81,7 +81,7 @@ export function getTasksByIds(ids: Id[]) {
   return rows.map(toTaskRow);
 }
 
-export function listTasksPage(args: ListPageArgs) {
+export async function listTasksPage(args: ListPageArgs) {
   const { limit, offset } = args;
   const filter = isRecord(args.filter) ? args.filter : {};
 
@@ -89,7 +89,7 @@ export function listTasksPage(args: ListPageArgs) {
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const finalParams = [...params, Math.max(1, limit), Math.max(0, offset)];
 
-  const rows = queryAll<TaskDbRow>(
+  const rows = await queryAll<TaskDbRow>(
     `
       ${withClause}
       SELECT t.id, t.folder_id, t.title, t.text, t.sub_ids, t.created_at
@@ -103,11 +103,11 @@ export function listTasksPage(args: ListPageArgs) {
   return rows.map(toTaskRow);
 }
 
-export function countTasks(filter: Record<string, unknown>) {
+export async function countTasks(filter: Record<string, unknown>) {
   const normalized = isRecord(filter) ? filter : {};
   const { where, params, withClause } = buildTasksFilterParts(normalized);
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const row = queryGet<{ total: number }>(
+  const row = await queryGet<{ total: number }>(
     `
       ${withClause}
       SELECT COUNT(1) as total
@@ -119,7 +119,7 @@ export function countTasks(filter: Record<string, unknown>) {
   return row?.total ?? 0;
 }
 
-export function createTask(input: {
+export async function createTask(input: {
   title?: string;
   text: string;
   folder_id: Id;
@@ -131,7 +131,7 @@ export function createTask(input: {
 
   const folderId = input.folder_id;
   if (!isValidId(folderId)) throw new Error('Invalid folder_id');
-  ensureFolderExists(folderId);
+  await ensureFolderExists(folderId);
 
   const id = generateId();
   const title = input.title?.trim() || null;
@@ -139,43 +139,38 @@ export function createTask(input: {
   if (!Array.isArray(subIds) || !subIds.every(isValidId)) throw new Error('Invalid sub_ids');
 
   if (input.created_at) {
-    queryRun(
+    await queryRun(
       `INSERT INTO tasks (id, folder_id, title, text, sub_ids, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
       [id, folderId, title, text, JSON.stringify(subIds), input.created_at],
     );
   } else {
-    queryRun(`INSERT INTO tasks (id, folder_id, title, text, sub_ids) VALUES (?, ?, ?, ?, ?)`, [
-      id,
-      folderId,
-      title,
-      text,
-      JSON.stringify(subIds),
-    ]);
+    await queryRun(
+      `INSERT INTO tasks (id, folder_id, title, text, sub_ids) VALUES (?, ?, ?, ?, ?)`,
+      [id, folderId, title, text, JSON.stringify(subIds)],
+    );
   }
-  const task = getTaskById(id);
+  const task = await getTaskById(id);
   if (!task) throw new Error('Not found');
   return task;
 }
 
-export function createTasks(inputs: { text: string; folder_id: Id; sub_ids?: Id[] }[]) {
+export async function createTasks(inputs: { text: string; folder_id: Id; sub_ids?: Id[] }[]) {
   if (!inputs.length) return [];
 
-  const results: ReturnType<typeof createTask>[] = [];
-  // 为每个任务生成递增的时间戳，确保批量创建时顺序稳定
-  // 每个任务间隔 1 毫秒，避免 created_at 相同导致排序不稳定
+  const results: Awaited<ReturnType<typeof createTask>>[] = [];
   const baseTime = Date.now();
   for (let i = 0; i < inputs.length; i++) {
     const created_at = new Date(baseTime + i).toISOString();
-    results.push(createTask({ ...inputs[i], created_at }));
+    results.push(await createTask({ ...inputs[i], created_at }));
   }
   return results;
 }
 
-export function updateTaskById(
+export async function updateTaskById(
   id: Id,
   patch: { title?: string | null; text?: string; folder_id?: Id; sub_ids?: Id[] },
 ) {
-  const existing = getTaskById(id);
+  const existing = await getTaskById(id);
   if (!existing) throw new Error('Not found');
 
   const nextTitle = patch.title === undefined ? existing.title : patch.title?.trim() || null;
@@ -184,10 +179,10 @@ export function updateTaskById(
 
   const nextFolderId = patch.folder_id === undefined ? existing.folder_id : patch.folder_id;
   if (!isValidId(nextFolderId)) throw new Error('Invalid folder_id');
-  ensureFolderExists(nextFolderId);
+  await ensureFolderExists(nextFolderId);
 
   if (patch.sub_ids === undefined) {
-    queryRun(`UPDATE tasks SET title = ?, text = ?, folder_id = ? WHERE id = ?`, [
+    await queryRun(`UPDATE tasks SET title = ?, text = ?, folder_id = ? WHERE id = ?`, [
       nextTitle,
       nextText,
       nextFolderId,
@@ -197,7 +192,7 @@ export function updateTaskById(
     if (!Array.isArray(patch.sub_ids) || !patch.sub_ids.every(isValidId)) {
       throw new Error('Invalid sub_ids');
     }
-    queryRun(`UPDATE tasks SET title = ?, text = ?, folder_id = ?, sub_ids = ? WHERE id = ?`, [
+    await queryRun(`UPDATE tasks SET title = ?, text = ?, folder_id = ?, sub_ids = ? WHERE id = ?`, [
       nextTitle,
       nextText,
       nextFolderId,
@@ -206,21 +201,21 @@ export function updateTaskById(
     ]);
   }
 
-  const task = getTaskById(id);
+  const task = await getTaskById(id);
   if (!task) throw new Error('Not found');
   return task;
 }
 
-export function deleteTaskById(id: Id) {
-  const result = queryRun(`DELETE FROM tasks WHERE id = ?`, [id]);
+export async function deleteTaskById(id: Id) {
+  const result = await queryRun(`DELETE FROM tasks WHERE id = ?`, [id]);
   return result.changes;
 }
 
-export function deleteTasksByFolderIds(folderIds: Id[]) {
+export async function deleteTasksByFolderIds(folderIds: Id[]) {
   const unique = Array.from(new Set(folderIds.filter(isValidId)));
   if (unique.length === 0) return 0;
   const placeholders = unique.map(() => '?').join(',');
-  const result = queryRun(`DELETE FROM tasks WHERE folder_id IN (${placeholders})`, unique);
+  const result = await queryRun(`DELETE FROM tasks WHERE folder_id IN (${placeholders})`, unique);
   return result.changes;
 }
 

@@ -2,6 +2,37 @@
 
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) + [SemVer](https://semver.org/).
 
+## [0.3.0] - 2026-05-18
+
+### Changed
+
+- **平台迁移到 Cloudflare Workers + D1 + R2**. 运行时从 Node `react-router-serve` 切换到 Workers (V8 isolate). 数据库 `better-sqlite3` (同步) → D1 (prepared statement, 异步); 截图 `data/screenshots/` 本地 fs → R2 bucket `ele-autopilot-screenshots`.
+- `lib/db/*` 全部函数改异步 (`async`/`await`); 通过 `lib/bindings.ts` 的 `AsyncLocalStorage` 注入 D1 + R2, 调用层无须显式传 binding.
+- `app/entry.server.tsx`: Node `renderToPipeableStream` + `node:stream` → web `renderToReadableStream` + 缓冲注入 antd cssinjs 样式 (Workers 不支持 PassThrough).
+- 构建系统: 接入 `@cloudflare/vite-plugin`, 启用 RR7 `future.v8_viteEnvironmentApi`. `wrangler.jsonc` 声明 `DB` (D1) + `SCREENSHOTS` (R2) bindings. 产物 `build/server/` 由 vite plugin 自动写入 `wrangler.json` 含完整 binding 配置.
+- 发布流程: push tag → Actions 走 `wrangler deploy` (替代旧 tarball release). 新增 `migrations/0001_init.sql` (D1 schema), Actions 自动 `wrangler d1 migrations apply --remote`.
+
+### Added
+
+- `workers/app.ts`: Workers fetch handler, 用 `createRequestHandler` + `runWithBindings` 把 `env` (DB + R2) 注入 RR7 AppLoadContext + ALS scope.
+- `lib/bindings.ts`: `AsyncLocalStorage<{DB, SCREENSHOTS}>` 容器, 请求级别注入 Cloudflare bindings; `getBindings()` / `runWithBindings()` API.
+- `migrations/0001_init.sql`: D1 初始 schema (folders / tasks / jobs / job_tasks / settings + 默认 agent_config).
+- `worker-configuration.d.ts`: `wrangler types` 生成的 runtime types + Env 类型 (含 DB / SCREENSHOTS).
+- `package.json` scripts: `preview` (`wrangler dev`), `deploy` (`wrangler deploy`), `typegen` (`wrangler types`).
+
+### Removed
+
+- `better-sqlite3` / `@types/better-sqlite3` / `@react-router/node` / `@react-router/serve` 依赖.
+- `lib/db/connection.ts` 中 `getDbPath` / `initSchema` / `seedTestData` (schema 由 D1 migrations 管理, seed 数据不再自动注入 - 生产环境靠 admin 创建).
+- 旧 `data/` 目录写入 (本地开发用 `wrangler dev` + miniflare 模拟 D1 + R2).
+- `.github/workflows/release.yml` 的 tarball 打包逻辑 (`linux-x64.tar.gz` + `checksums.txt` 不再产出).
+
+### Migration Notes (operator)
+
+- 必备 GitHub Secrets: `CLOUDFLARE_API_TOKEN` (含 Workers / D1 / R2 编辑权限), `CLOUDFLARE_ACCOUNT_ID`.
+- 首次部署 Actions 自动创建 D1 database `ele-autopilot` + R2 bucket `ele-autopilot-screenshots` (幂等检测, 已存在不重建).
+- 历史 SQLite 数据 / 本地 screenshots 不自动迁移. 如需保留, 用 `wrangler d1 execute` 批量导入 + `wrangler r2 object put` 上传图片.
+
 ## [0.2.5] - 2026-05-18
 
 ### Removed
@@ -92,6 +123,7 @@
 - DB schema 迁移机制: `initSchema` 内 `ALTER TABLE ... ADD COLUMN` (try/catch 包裹) 幂等处理, 保证已有数据不被破坏.
 - `tag (v*)` 触发 GitHub Actions: 构建 Next.js `standalone` 产物, 打包 `linux-x64` tarball, 生成 SHA256 `checksums.txt`, 发布 GitHub Release.
 
+[0.3.0]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.3.0
 [0.2.5]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.5
 [0.2.4]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.4
 [0.2.3]: https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/tag/v0.2.3

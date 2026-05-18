@@ -15,7 +15,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const id = parseIdParam(params.id ?? '');
   if (!id) return jsonError('Invalid `id`', 400);
 
-  const folder = getFolderById(id);
+  const folder = await getFolderById(id);
   if (!folder) return jsonError('Not found', 404);
   return jsonResponse(folder);
 }
@@ -31,10 +31,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const id = parseIdParam(params.id ?? '');
     if (!id) return jsonError('Invalid `id`', 400);
 
-    const existing = getFolderById(id);
+    const existing = await getFolderById(id);
     if (!existing) return jsonError('Not found', 404);
 
-    const changes = deleteFolderById(id);
+    const changes = await deleteFolderById(id);
     if (changes === 0) return jsonError('Not found', 404);
     return jsonResponse(existing);
   }
@@ -82,7 +82,7 @@ async function updateFolder(request: Request, rawId: string) {
       throw new Error('Invalid order_index');
     }
 
-    const folder = updateFolderById(id, { name, parent_id, order_index });
+    const folder = await updateFolderById(id, { name, parent_id, order_index });
     return jsonResponse(folder);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

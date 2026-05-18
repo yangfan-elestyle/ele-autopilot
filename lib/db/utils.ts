@@ -28,19 +28,26 @@ export function normalizeOrder(order: string | undefined): SortOrder {
   return order?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 }
 
-export function queryAll<T>(sql: string, params: unknown[] = []) {
+export async function queryAll<T>(sql: string, params: unknown[] = []): Promise<T[]> {
   const db = getDb();
-  return db.prepare(sql).all(...(params as never[])) as T[];
+  const stmt = params.length ? db.prepare(sql).bind(...params) : db.prepare(sql);
+  const { results } = await stmt.all<T>();
+  return results ?? [];
 }
 
-export function queryGet<T>(sql: string, params: unknown[] = []) {
+export async function queryGet<T>(sql: string, params: unknown[] = []): Promise<T | null> {
   const db = getDb();
-  return (db.prepare(sql).get(...(params as never[])) as T | null) ?? null;
+  const stmt = params.length ? db.prepare(sql).bind(...params) : db.prepare(sql);
+  const row = await stmt.first<T>();
+  return row ?? null;
 }
 
-export function queryRun(sql: string, params: unknown[] = []) {
+export async function queryRun(
+  sql: string,
+  params: unknown[] = [],
+): Promise<{ changes: number }> {
   const db = getDb();
-  return db.prepare(sql).run(...(params as never[])) as {
-    changes: number;
-  };
+  const stmt = params.length ? db.prepare(sql).bind(...params) : db.prepare(sql);
+  const { meta } = await stmt.run();
+  return { changes: meta?.changes ?? 0 };
 }

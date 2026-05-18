@@ -25,7 +25,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const full = url.searchParams.get('full') === 'true';
 
-  const job = full ? getJobWithTasks(id) : getJobWithTasksLite(id);
+  const job = full ? await getJobWithTasks(id) : await getJobWithTasksLite(id);
   if (!job) return jsonError('Not found', 404);
 
   return jsonResponse({ code: 0, message: 'success', data: job });
@@ -42,10 +42,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const id = parseIdParam(params.id ?? '');
     if (!id) return jsonError('Invalid `id`', 400);
 
-    const existing = getJobById(id);
+    const existing = await getJobById(id);
     if (!existing) return jsonError('Not found', 404);
 
-    const changes = deleteJobById(id);
+    const changes = await deleteJobById(id);
     if (changes === 0) return jsonError('Not found', 404);
 
     return jsonResponse({ code: 0, message: 'success', data: existing });
@@ -101,7 +101,7 @@ async function updateJob(request: Request, rawId: string) {
       patch.completed_at = payload.completed_at;
     }
 
-    const job = updateJobById(id, patch);
+    const job = await updateJobById(id, patch);
     if (!job) return jsonError('Not found', 404);
 
     return jsonResponse({ code: 0, message: 'success', data: job });

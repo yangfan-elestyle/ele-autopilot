@@ -6,7 +6,7 @@ import { jsonError, jsonResponse, methodNotAllowed } from '@/app/lib/api-shared'
 
 export async function loader() {
   try {
-    const config = getAgentConfig();
+    const config = await getAgentConfig();
     return jsonResponse(config);
   } catch (error) {
     console.error('Failed to get settings:', error);
@@ -24,7 +24,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return jsonError('Config must be a JSON object', 400);
     }
 
-    const config = setAgentConfig(body);
+    const config = await setAgentConfig(body);
     return jsonResponse(config);
   } catch (error) {
     console.error('Failed to update settings:', error);

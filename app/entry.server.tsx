@@ -1,14 +1,12 @@
-import { PassThrough } from 'node:stream';
-
 import { createCache, extractStyle, StyleProvider } from '@ant-design/cssinjs';
-import { createReadableStreamFromReadable } from '@react-router/node';
-import { renderToPipeableStream } from 'react-dom/server';
+import { renderToReadableStream } from 'react-dom/server';
+import { isbot } from 'isbot';
 import type { EntryContext } from 'react-router';
 import { ServerRouter } from 'react-router';
 
 export const streamTimeout = 5_000;
 
-export default function handleRequest(
+export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
@@ -19,70 +17,31 @@ export default function handleRequest(
   }
 
   const cache = createCache();
+  const userAgent = request.headers.get('user-agent');
 
-  return new Promise((resolve, reject) => {
-    let shellRendered = false;
-
-    let timeoutId: ReturnType<typeof setTimeout> | undefined = setTimeout(
-      () => abort(),
-      streamTimeout + 1000,
-    );
-
-    // antd cssinjs requires the full tree to render before extractStyle().
-    const { pipe, abort } = renderToPipeableStream(
-      <StyleProvider cache={cache}>
-        <ServerRouter context={routerContext} url={request.url} />
-      </StyleProvider>,
-      {
-        onAllReady() {
-          shellRendered = true;
-
-          // Inject antd cssinjs styles into <head> of the rendered HTML by
-          // transforming the pipe output.
-          const styleText = extractStyle(cache);
-
-          const body = new PassThrough({
-            final(callback) {
-              clearTimeout(timeoutId);
-              timeoutId = undefined;
-              callback();
-            },
-          });
-
-          // Buffer + replace </head> with styleText + </head>, then emit at once.
-          const chunks: Buffer[] = [];
-          const transformer = new PassThrough();
-          transformer.on('data', (chunk: Buffer) => chunks.push(chunk));
-          transformer.on('end', () => {
-            const html = Buffer.concat(chunks).toString('utf8');
-            const patched = html.replace('</head>', `${styleText}</head>`);
-            body.write(patched);
-            body.end();
-          });
-
-          pipe(transformer);
-
-          const stream = createReadableStreamFromReadable(body);
-
-          responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
-
-          resolve(
-            new Response(stream, {
-              headers: responseHeaders,
-              status: responseStatusCode,
-            }),
-          );
-        },
-        onShellError(error: unknown) {
-          reject(error);
-        },
-        onError(error: unknown) {
-          responseStatusCode = 500;
-          if (shellRendered) {
-            console.error(error);
-          }
-        },
+  const body = await renderToReadableStream(
+    <StyleProvider cache={cache}>
+      <ServerRouter context={routerContext} url={request.url} />
+    </StyleProvider>,
+    {
+      signal: request.signal,
+      onError(error: unknown) {
+        responseStatusCode = 500;
+        console.error(error);
       },
-    );
-  });
+    },
+  );
+
+  // antd cssinjs extractStyle 必须在渲染完成后调用; bot 也走这一路径
+  if ((userAgent && isbot(userAgent)) || routerContext.isSpaMode) {
+    await body.allReady;
+  }
+
+  // 缓冲整个 HTML, 把 cssinjs 抽取的 <style> 注入 </head>
+  const html = await new Response(body).text();
+  const styleText = extractStyle(cache);
+  const patched = html.replace('</head>', `${styleText}</head>`);
+
+  responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
+  return new Response(patched, { status: responseStatusCode, headers: responseHeaders });
 }

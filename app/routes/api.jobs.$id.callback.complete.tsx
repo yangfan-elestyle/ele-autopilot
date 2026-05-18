@@ -19,7 +19,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return envelope(400, 'Invalid job id', null, 400);
   }
 
-  const job = getJobById(rawId);
+  const job = await getJobById(rawId);
   if (!job) {
     return envelope(404, 'Job not found', null, 404);
   }
@@ -45,7 +45,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const completedAt = typeof payload.completed_at === 'string' ? payload.completed_at : undefined;
 
   try {
-    updateJobById(rawId, {
+    await updateJobById(rawId, {
       status: status as JobStatus,
       error,
       completed_at: completedAt,

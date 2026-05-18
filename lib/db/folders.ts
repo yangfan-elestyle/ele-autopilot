@@ -1,14 +1,16 @@
 import type { FolderRow, Id, ListPageArgs } from './types';
 import { escapeLike, generateId, isRecord, isValidId, queryAll, queryGet, queryRun } from './utils';
 
-export function ensureParentFolderValid(folderId: Id, parentId: Id | null) {
+export async function ensureParentFolderValid(folderId: Id, parentId: Id | null) {
   if (parentId === null) return;
   if (parentId === folderId) throw new Error('Invalid parent_id');
 
-  const parentExists = queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM folders WHERE id = ?`, [parentId]);
+  const parentExists = await queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM folders WHERE id = ?`, [
+    parentId,
+  ]);
   if (!parentExists) throw new Error('Invalid parent_id');
 
-  const cycle = queryGet<{ ok: 1 }>(
+  const cycle = await queryGet<{ ok: 1 }>(
     `
       WITH RECURSIVE descendants(id) AS (
         SELECT id FROM folders WHERE id = ?
@@ -23,8 +25,8 @@ export function ensureParentFolderValid(folderId: Id, parentId: Id | null) {
   if (cycle) throw new Error('Invalid parent_id');
 }
 
-export function getFolderById(id: Id) {
-  return queryGet<FolderRow>(
+export async function getFolderById(id: Id) {
+  return await queryGet<FolderRow>(
     `
       SELECT
         f.id,
@@ -40,11 +42,11 @@ export function getFolderById(id: Id) {
   );
 }
 
-export function getFoldersByIds(ids: Id[]) {
+export async function getFoldersByIds(ids: Id[]) {
   const unique = Array.from(new Set(ids.filter(isValidId)));
   if (unique.length === 0) return [];
   const placeholders = unique.map(() => '?').join(',');
-  return queryAll<FolderRow>(
+  return await queryAll<FolderRow>(
     `
       SELECT
         f.id,
@@ -64,7 +66,7 @@ export function getFoldersByIds(ids: Id[]) {
   );
 }
 
-export function listFoldersPage(args: ListPageArgs) {
+export async function listFoldersPage(args: ListPageArgs) {
   const { limit, offset } = args;
   const filter = isRecord(args.filter) ? args.filter : {};
 
@@ -91,7 +93,7 @@ export function listFoldersPage(args: ListPageArgs) {
   params.push(Math.max(1, limit));
   params.push(Math.max(0, offset));
 
-  return queryAll<FolderRow>(
+  return await queryAll<FolderRow>(
     `
       SELECT
         f.id,
@@ -112,7 +114,7 @@ export function listFoldersPage(args: ListPageArgs) {
   );
 }
 
-export function countFolders(filter: Record<string, unknown>) {
+export async function countFolders(filter: Record<string, unknown>) {
   const normalized = isRecord(filter) ? filter : {};
   const where: string[] = [];
   const params: unknown[] = [];
@@ -134,36 +136,42 @@ export function countFolders(filter: Record<string, unknown>) {
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const row = queryGet<{ total: number }>(
+  const row = await queryGet<{ total: number }>(
     `SELECT COUNT(1) as total FROM folders ${whereSql}`,
     params,
   );
   return row?.total ?? 0;
 }
 
-export function createFolder(input: { name: string; parent_id?: Id | null }) {
+export async function createFolder(input: { name: string; parent_id?: Id | null }) {
   const name = input.name.trim();
   if (!name) throw new Error('`name` is required');
   const parentId = input.parent_id ?? null;
 
   if (parentId !== null) {
     if (!isValidId(parentId)) throw new Error('Invalid parent_id');
-    const exists = queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM folders WHERE id = ?`, [parentId]);
+    const exists = await queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM folders WHERE id = ?`, [
+      parentId,
+    ]);
     if (!exists) throw new Error('Invalid parent_id');
   }
 
   const id = generateId();
-  queryRun(`INSERT INTO folders (id, name, parent_id) VALUES (?, ?, ?)`, [id, name, parentId]);
-  const folder = getFolderById(id);
+  await queryRun(`INSERT INTO folders (id, name, parent_id) VALUES (?, ?, ?)`, [
+    id,
+    name,
+    parentId,
+  ]);
+  const folder = await getFolderById(id);
   if (!folder) throw new Error('Not found');
   return folder;
 }
 
-export function updateFolderById(
+export async function updateFolderById(
   id: Id,
   patch: { name?: string; parent_id?: Id | null; order_index?: number | null },
 ) {
-  const existing = getFolderById(id);
+  const existing = await getFolderById(id);
   if (!existing) throw new Error('Not found');
 
   const nextName = patch.name === undefined ? existing.name : String(patch.name).trim();
@@ -178,19 +186,19 @@ export function updateFolderById(
     } else {
       throw new Error('Invalid parent_id');
     }
-    ensureParentFolderValid(id, nextParent);
+    await ensureParentFolderValid(id, nextParent);
   }
 
   const nextOrderIndex = patch.order_index === undefined ? existing.order_index : patch.order_index;
 
-  queryRun(`UPDATE folders SET name = ?, parent_id = ?, order_index = ? WHERE id = ?`, [
+  await queryRun(`UPDATE folders SET name = ?, parent_id = ?, order_index = ? WHERE id = ?`, [
     nextName,
     nextParent,
     nextOrderIndex,
     id,
   ]);
 
-  const folder = getFolderById(id);
+  const folder = await getFolderById(id);
   if (!folder) throw new Error('Not found');
   return folder;
 }
@@ -198,9 +206,8 @@ export function updateFolderById(
 /**
  * 递归删除 folder 及其所有子 folder 和关联的 tasks/jobs
  */
-export function deleteFolderById(id: Id) {
-  // 使用递归 CTE 获取当前 folder 及其所有后代 folder IDs（按深度排序，叶子在前）
-  const descendants = queryAll<{ id: Id; depth: number }>(
+export async function deleteFolderById(id: Id) {
+  const descendants = await queryAll<{ id: Id; depth: number }>(
     `
       WITH RECURSIVE descendants(id, depth) AS (
         SELECT id, 0 FROM folders WHERE id = ?
@@ -213,14 +220,12 @@ export function deleteFolderById(id: Id) {
     [id],
   );
 
-  // folderIds 已按深度降序排列（叶子节点在前，根节点在后）
   const folderIds = descendants.map((row) => row.id);
   if (folderIds.length === 0) return 0;
 
   const placeholders = folderIds.map(() => '?').join(',');
 
-  // 获取所有相关的 task IDs
-  const taskRows = queryAll<{ id: Id }>(
+  const taskRows = await queryAll<{ id: Id }>(
     `SELECT id FROM tasks WHERE folder_id IN (${placeholders})`,
     folderIds,
   );
@@ -228,23 +233,20 @@ export function deleteFolderById(id: Id) {
 
   if (taskIds.length > 0) {
     const taskPlaceholders = taskIds.map(() => '?').join(',');
-    // 先删除 jobs（job_tasks 会因 ON DELETE CASCADE 自动删除）
-    queryRun(`DELETE FROM jobs WHERE task_id IN (${taskPlaceholders})`, taskIds);
+    await queryRun(`DELETE FROM jobs WHERE task_id IN (${taskPlaceholders})`, taskIds);
   }
 
-  // 删除所有 tasks
-  queryRun(`DELETE FROM tasks WHERE folder_id IN (${placeholders})`, folderIds);
+  await queryRun(`DELETE FROM tasks WHERE folder_id IN (${placeholders})`, folderIds);
 
-  // 逐个删除 folders（从叶子到根，避免外键约束）
   let totalChanges = 0;
   for (const folderId of folderIds) {
-    const result = queryRun(`DELETE FROM folders WHERE id = ?`, [folderId]);
+    const result = await queryRun(`DELETE FROM folders WHERE id = ?`, [folderId]);
     totalChanges += result.changes;
   }
   return totalChanges;
 }
 
-export function reorderFolders(folderIds: Id[], parentId: Id | null) {
+export async function reorderFolders(folderIds: Id[], parentId: Id | null) {
   const validIds = folderIds.filter(isValidId);
   if (validIds.length === 0) return;
 
@@ -254,6 +256,10 @@ export function reorderFolders(folderIds: Id[], parentId: Id | null) {
 
   for (let i = 0; i < validIds.length; i++) {
     const id = validIds[i];
-    queryRun(`UPDATE folders SET order_index = ?, parent_id = ? WHERE id = ?`, [i, parentId, id]);
+    await queryRun(`UPDATE folders SET order_index = ?, parent_id = ? WHERE id = ?`, [
+      i,
+      parentId,
+      id,
+    ]);
   }
 }

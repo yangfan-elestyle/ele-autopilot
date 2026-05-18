@@ -1,31 +1,20 @@
-import { readFileSync } from 'node:fs';
-
 import type { LoaderFunctionArgs } from 'react-router';
 
-import { resolveScreenshotAbsPath } from '@/lib/screenshots';
+import { getBindings } from '@/lib/bindings';
+import { r2KeyFromRelPath } from '@/lib/screenshots';
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const rel = params['*'] ?? '';
-  if (!rel || rel.includes('\0')) {
-    return new Response('Not found', { status: 404 });
-  }
+  const key = r2KeyFromRelPath(rel);
+  if (!key) return new Response('Not found', { status: 404 });
 
-  const abs = resolveScreenshotAbsPath(rel);
-  if (!abs) {
-    return new Response('Forbidden', { status: 403 });
-  }
+  const { SCREENSHOTS } = getBindings();
+  const obj = await SCREENSHOTS.get(key);
+  if (!obj) return new Response('Not found', { status: 404 });
 
-  let buf: Buffer;
-  try {
-    buf = readFileSync(abs);
-  } catch {
-    return new Response('Not found', { status: 404 });
-  }
-
-  return new Response(new Uint8Array(buf), {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    },
-  });
+  const headers = new Headers();
+  headers.set('Content-Type', obj.httpMetadata?.contentType ?? 'image/png');
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('ETag', obj.httpEtag);
+  return new Response(obj.body, { headers });
 }

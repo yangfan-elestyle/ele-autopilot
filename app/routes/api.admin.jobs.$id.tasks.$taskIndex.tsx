@@ -12,10 +12,10 @@ export async function loader({ params }: LoaderFunctionArgs) {
     return jsonError('Invalid `taskIndex`', 400);
   }
 
-  const job = getJobById(id);
+  const job = await getJobById(id);
   if (!job) return jsonError('Job not found', 404);
 
-  const jobTask = getJobTaskByIndex(id, taskIndex);
+  const jobTask = await getJobTaskByIndex(id, taskIndex);
   if (!jobTask) return jsonError('JobTask not found', 404);
 
   return jsonResponse({ code: 0, message: 'success', data: jobTask });

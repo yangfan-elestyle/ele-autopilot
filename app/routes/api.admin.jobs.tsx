@@ -20,14 +20,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const limit = Math.max(1, Math.trunc(end) - Math.trunc(start) + 1);
   const offset = Math.max(0, Math.trunc(start));
 
-  const data = listJobsPage({
+  const data = await listJobsPage({
     limit,
     offset,
     sort: sortField,
     order: sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC',
     filter,
   });
-  const total = countJobs(filter);
+  const total = await countJobs(filter);
   const actualEnd = Math.max(offset, offset + data.length - 1);
   const headers = withContentRange('jobs', offset, actualEnd, total);
   return new Response(JSON.stringify(data), { headers });
@@ -63,7 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
     }
 
-    const job = createJob({ task_id, config });
+    const job = await createJob({ task_id, config });
 
     return jsonResponse(
       {

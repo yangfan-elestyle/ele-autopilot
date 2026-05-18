@@ -15,7 +15,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const id = parseIdParam(params.id ?? '');
   if (!id) return jsonError('Invalid `id`', 400);
 
-  const task = getTaskById(id);
+  const task = await getTaskById(id);
   if (!task) return jsonError('Not found', 404);
   return jsonResponse(task);
 }
@@ -31,10 +31,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const id = parseIdParam(params.id ?? '');
     if (!id) return jsonError('Invalid `id`', 400);
 
-    const existing = getTaskById(id);
+    const existing = await getTaskById(id);
     if (!existing) return jsonError('Not found', 404);
 
-    const changes = deleteTaskById(id);
+    const changes = await deleteTaskById(id);
     if (changes === 0) return jsonError('Not found', 404);
     return jsonResponse(existing);
   }
@@ -84,7 +84,7 @@ async function updateTask(request: Request, rawId: string) {
       throw new Error('Invalid sub_ids');
     }
 
-    const task = updateTaskById(id, { title, text, folder_id, sub_ids });
+    const task = await updateTaskById(id, { title, text, folder_id, sub_ids });
     return jsonResponse(task);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

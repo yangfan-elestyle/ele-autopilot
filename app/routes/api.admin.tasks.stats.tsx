@@ -18,7 +18,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return jsonResponse({});
   }
 
-  const statsMap = getJobStatsByTaskIds(taskIds);
+  const statsMap = await getJobStatsByTaskIds(taskIds);
 
   const result: Record<
     Id,

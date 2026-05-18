@@ -37,7 +37,9 @@ export async function createJobOnServer(params: { task_id: Id; config?: JobConfi
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const error = (await response
+      .json()
+      .catch(() => ({ error: 'Unknown error' }))) as { error?: string };
     throw new Error(error.error || `Server error: ${response.status}`);
   }
 
@@ -60,7 +62,9 @@ export async function getJobFromServer(jobId: Id): Promise<JobLite> {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const error = (await response
+      .json()
+      .catch(() => ({ error: 'Unknown error' }))) as { error?: string };
     throw new Error(error.error || `Server error: ${response.status}`);
   }
 
@@ -91,7 +95,9 @@ export async function updateJobOnServer(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const error = (await response
+      .json()
+      .catch(() => ({ error: 'Unknown error' }))) as { error?: string };
     throw new Error(error.error || `Server error: ${response.status}`);
   }
 

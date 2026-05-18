@@ -84,7 +84,9 @@ export async function stopJobOnLocal(jobId: string, taskId?: string): Promise<St
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    const error = (await response
+      .json()
+      .catch(() => ({ message: 'Unknown error' }))) as { message?: string };
     throw new Error(error.message || `Local API error: ${response.status}`);
   }
 
@@ -107,7 +109,7 @@ export async function checkLocalConnection(): Promise<boolean> {
 
     if (!response.ok) return false;
 
-    const result = await response.json();
+    const result = (await response.json()) as { code: number };
     return result.code === 0;
   } catch {
     return false;

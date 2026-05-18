@@ -11,15 +11,14 @@ import type {
   JobWithTasksLite,
   ListPageArgs,
   TaskActionResult,
-  TaskRow,
 } from './types';
 import { generateId, isRecord, isValidId, queryAll, queryGet, queryRun } from './utils';
 import { getTaskById } from './tasks';
 
 // ============ 辅助函数 ============
 
-function ensureTaskExists(taskId: Id) {
-  const exists = queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM tasks WHERE id = ?`, [taskId]);
+async function ensureTaskExists(taskId: Id) {
+  const exists = await queryGet<{ ok: 1 }>(`SELECT 1 as ok FROM tasks WHERE id = ?`, [taskId]);
   if (!exists) throw new Error('Invalid task_id');
 }
 
@@ -70,9 +69,6 @@ function toJobTaskRow(dbRow: JobTaskDbRow): JobTaskRow {
   };
 }
 
-/**
- * 转换为轻量版 JobTaskRow（只包含 summary，不含完整 result）
- */
 function toJobTaskLiteRow(dbRow: JobTaskDbRow): JobTaskLiteRow {
   return {
     id: dbRow.id,
@@ -90,36 +86,33 @@ function toJobTaskLiteRow(dbRow: JobTaskDbRow): JobTaskLiteRow {
 }
 
 /**
- * 递归展开 TaskRow 的 sub_ids，返回所有叶子节点（flat 任务数组）
- * 叶子节点：sub_ids 为空的 TaskRow
+ * 递归展开 TaskRow 的 sub_ids, 返回所有叶子节点 (flat 任务数组)
  */
-function flattenTaskTree(
+async function flattenTaskTree(
   taskId: Id,
   visited: Set<Id> = new Set(),
-): Array<{ id: Id; title: string | null; text: string }> {
-  if (visited.has(taskId)) return []; // 防止循环引用
+): Promise<Array<{ id: Id; title: string | null; text: string }>> {
+  if (visited.has(taskId)) return [];
   visited.add(taskId);
 
-  const task = getTaskById(taskId);
+  const task = await getTaskById(taskId);
   if (!task) return [];
 
-  // 叶子节点：没有 sub_ids
   if (!task.sub_ids || task.sub_ids.length === 0) {
     return [{ id: task.id, title: task.title ?? null, text: task.text }];
   }
 
-  // 容器节点：递归展开所有 sub_ids
   const result: Array<{ id: Id; title: string | null; text: string }> = [];
   for (const subId of task.sub_ids) {
-    result.push(...flattenTaskTree(subId, visited));
+    result.push(...(await flattenTaskTree(subId, visited)));
   }
   return result;
 }
 
 // ============ Job CRUD ============
 
-export function getJobById(id: Id): JobRow | null {
-  const row = queryGet<JobDbRow>(
+export async function getJobById(id: Id): Promise<JobRow | null> {
+  const row = await queryGet<JobDbRow>(
     `
       SELECT id, task_id, status, config, created_at, started_at, completed_at, error
       FROM jobs
@@ -131,11 +124,11 @@ export function getJobById(id: Id): JobRow | null {
   return toJobRow(row);
 }
 
-export function getJobWithTasks(id: Id): JobWithTasks | null {
-  const job = getJobById(id);
+export async function getJobWithTasks(id: Id): Promise<JobWithTasks | null> {
+  const job = await getJobById(id);
   if (!job) return null;
 
-  const taskRows = queryAll<JobTaskDbRow>(
+  const taskRows = await queryAll<JobTaskDbRow>(
     `
       SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
@@ -151,15 +144,11 @@ export function getJobWithTasks(id: Id): JobWithTasks | null {
   };
 }
 
-/**
- * 获取 Job 详情（轻量版，tasks 只包含 summary 摘要）
- * 用于列表展示和轮询，减少数据传输量
- */
-export function getJobWithTasksLite(id: Id): JobWithTasksLite | null {
-  const job = getJobById(id);
+export async function getJobWithTasksLite(id: Id): Promise<JobWithTasksLite | null> {
+  const job = await getJobById(id);
   if (!job) return null;
 
-  const taskRows = queryAll<
+  const taskRows = await queryAll<
     Omit<JobTaskDbRow, 'result'> & {
       result?: null;
     }
@@ -179,7 +168,7 @@ export function getJobWithTasksLite(id: Id): JobWithTasksLite | null {
   };
 }
 
-export function listJobsPage(args: ListPageArgs): JobRow[] {
+export async function listJobsPage(args: ListPageArgs): Promise<JobRow[]> {
   const { limit, offset, filter } = args;
   const where: string[] = [];
   const params: unknown[] = [];
@@ -201,7 +190,7 @@ export function listJobsPage(args: ListPageArgs): JobRow[] {
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const finalParams = [...params, Math.max(1, limit), Math.max(0, offset)];
 
-  const rows = queryAll<JobDbRow>(
+  const rows = await queryAll<JobDbRow>(
     `
       SELECT id, task_id, status, config, created_at, started_at, completed_at, error
       FROM jobs
@@ -214,7 +203,7 @@ export function listJobsPage(args: ListPageArgs): JobRow[] {
   return rows.map(toJobRow);
 }
 
-export function countJobs(filter?: Record<string, unknown>): number {
+export async function countJobs(filter?: Record<string, unknown>): Promise<number> {
   const where: string[] = [];
   const params: unknown[] = [];
 
@@ -233,31 +222,25 @@ export function countJobs(filter?: Record<string, unknown>): number {
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const row = queryGet<{ total: number }>(`SELECT COUNT(1) as total FROM jobs ${whereSql}`, params);
+  const row = await queryGet<{ total: number }>(
+    `SELECT COUNT(1) as total FROM jobs ${whereSql}`,
+    params,
+  );
   return row?.total ?? 0;
 }
 
-/**
- * 创建 Job
- * 1. 根据 task_id 查询 TaskRow
- * 2. 递归展开 sub_ids，flat 成任务数组
- * 3. 创建 job 记录
- * 4. 按顺序创建 job_tasks 记录
- */
-export function createJob(input: { task_id: Id; config?: JobConfig }): JobWithTasks {
+export async function createJob(input: { task_id: Id; config?: JobConfig }): Promise<JobWithTasks> {
   const taskId = input.task_id;
   if (!isValidId(taskId)) throw new Error('Invalid task_id');
-  ensureTaskExists(taskId);
+  await ensureTaskExists(taskId);
 
   const config = input.config ?? {};
   const now = new Date().toISOString();
   const jobId = generateId();
 
-  // 递归展开 sub_ids，获取所有叶子节点
-  const flatTasks = flattenTaskTree(taskId);
+  const flatTasks = await flattenTaskTree(taskId);
   if (flatTasks.length === 0) {
-    // 如果 task 本身就是叶子节点，直接使用它
-    const task = getTaskById(taskId);
+    const task = await getTaskById(taskId);
     if (task) {
       flatTasks.push({ id: task.id, title: task.title ?? null, text: task.text });
     }
@@ -267,28 +250,26 @@ export function createJob(input: { task_id: Id; config?: JobConfig }): JobWithTa
     throw new Error('No tasks to execute');
   }
 
-  // 创建 job 记录
-  queryRun(
+  await queryRun(
     `INSERT INTO jobs (id, task_id, status, config, created_at, started_at) VALUES (?, ?, ?, ?, ?, ?)`,
     [jobId, taskId, 'pending', JSON.stringify(config), now, now],
   );
 
-  // 创建 job_tasks 记录
   for (let i = 0; i < flatTasks.length; i++) {
     const ft = flatTasks[i];
     const jtId = generateId();
-    queryRun(
+    await queryRun(
       `INSERT INTO job_tasks (id, job_id, task_id, task_index, task_title, task_text, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [jtId, jobId, ft.id, i, ft.title, ft.text, 'pending'],
     );
   }
 
-  const result = getJobWithTasks(jobId);
+  const result = await getJobWithTasks(jobId);
   if (!result) throw new Error('Failed to create job');
   return result;
 }
 
-export function updateJobById(
+export async function updateJobById(
   id: Id,
   patch: {
     status?: JobStatus;
@@ -296,8 +277,8 @@ export function updateJobById(
     started_at?: string;
     completed_at?: string;
   },
-): JobRow | null {
-  const existing = getJobById(id);
+): Promise<JobRow | null> {
+  const existing = await getJobById(id);
   if (!existing) return null;
 
   const setClauses: string[] = [];
@@ -323,21 +304,20 @@ export function updateJobById(
   if (setClauses.length === 0) return existing;
 
   params.push(id);
-  queryRun(`UPDATE jobs SET ${setClauses.join(', ')} WHERE id = ?`, params);
+  await queryRun(`UPDATE jobs SET ${setClauses.join(', ')} WHERE id = ?`, params);
 
-  return getJobById(id);
+  return await getJobById(id);
 }
 
-export function deleteJobById(id: Id): number {
-  // job_tasks 会通过 ON DELETE CASCADE 自动删除
-  const result = queryRun(`DELETE FROM jobs WHERE id = ?`, [id]);
+export async function deleteJobById(id: Id): Promise<number> {
+  const result = await queryRun(`DELETE FROM jobs WHERE id = ?`, [id]);
   return result.changes;
 }
 
 // ============ JobTask 相关 ============
 
-export function getJobTasksByJobId(jobId: Id): JobTaskRow[] {
-  const rows = queryAll<JobTaskDbRow>(
+export async function getJobTasksByJobId(jobId: Id): Promise<JobTaskRow[]> {
+  const rows = await queryAll<JobTaskDbRow>(
     `
       SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
@@ -349,12 +329,8 @@ export function getJobTasksByJobId(jobId: Id): JobTaskRow[] {
   return rows.map(toJobTaskRow);
 }
 
-/**
- * 根据 job_id 和 task_index 获取单个 job_task 的完整详情
- * 用于按需加载详细执行结果
- */
-export function getJobTaskByIndex(jobId: Id, taskIndex: number): JobTaskRow | null {
-  const row = queryGet<JobTaskDbRow>(
+export async function getJobTaskByIndex(jobId: Id, taskIndex: number): Promise<JobTaskRow | null> {
+  const row = await queryGet<JobTaskDbRow>(
     `
       SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
@@ -365,11 +341,7 @@ export function getJobTaskByIndex(jobId: Id, taskIndex: number): JobTaskRow | nu
   return row ? toJobTaskRow(row) : null;
 }
 
-/**
- * 根据 job_id 和 task_index 更新 job_task
- * 用于 Local 回调更新状态
- */
-export function updateJobTaskByIndex(
+export async function updateJobTaskByIndex(
   jobId: Id,
   taskIndex: number,
   patch: {
@@ -379,8 +351,8 @@ export function updateJobTaskByIndex(
     started_at?: string;
     completed_at?: string;
   },
-): JobTaskRow | null {
-  const row = queryGet<JobTaskDbRow>(
+): Promise<JobTaskRow | null> {
+  const row = await queryGet<JobTaskDbRow>(
     `
       SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
@@ -417,9 +389,9 @@ export function updateJobTaskByIndex(
   if (setClauses.length === 0) return toJobTaskRow(row);
 
   params.push(row.id);
-  queryRun(`UPDATE job_tasks SET ${setClauses.join(', ')} WHERE id = ?`, params);
+  await queryRun(`UPDATE job_tasks SET ${setClauses.join(', ')} WHERE id = ?`, params);
 
-  const updated = queryGet<JobTaskDbRow>(
+  const updated = await queryGet<JobTaskDbRow>(
     `
       SELECT id, job_id, task_id, task_index, task_title, task_text, status, result, error, started_at, completed_at
       FROM job_tasks
@@ -430,12 +402,9 @@ export function updateJobTaskByIndex(
   return updated ? toJobTaskRow(updated) : null;
 }
 
-/**
- * 根据 job_tasks 的状态聚合更新 job 状态
- */
-export function syncJobStatusFromTasks(jobId: Id): JobRow | null {
-  const tasks = getJobTasksByJobId(jobId);
-  if (tasks.length === 0) return getJobById(jobId);
+export async function syncJobStatusFromTasks(jobId: Id): Promise<JobRow | null> {
+  const tasks = await getJobTasksByJobId(jobId);
+  if (tasks.length === 0) return await getJobById(jobId);
 
   let newStatus: JobStatus;
 
@@ -449,7 +418,7 @@ export function syncJobStatusFromTasks(jobId: Id): JobRow | null {
     newStatus = 'pending';
   }
 
-  return updateJobById(jobId, { status: newStatus });
+  return await updateJobById(jobId, { status: newStatus });
 }
 
 // ============ Job 统计 ============
@@ -462,24 +431,17 @@ export type JobStats = {
   pending: number;
 };
 
-/**
- * 批量获取 task 的 job 执行统计
- * 返回 Map<task_id, JobStats>
- */
-export function getJobStatsByTaskIds(taskIds: Id[]): Map<Id, JobStats> {
+export async function getJobStatsByTaskIds(taskIds: Id[]): Promise<Map<Id, JobStats>> {
   const result = new Map<Id, JobStats>();
   if (taskIds.length === 0) return result;
 
-  // 初始化所有 taskId 的统计为 0
   for (const id of taskIds) {
     result.set(id, { total: 0, completed: 0, failed: 0, running: 0, pending: 0 });
   }
 
-  // 构建 IN 子句的占位符
   const placeholders = taskIds.map(() => '?').join(', ');
 
-  // 聚合查询
-  const rows = queryAll<{ task_id: string; status: string; cnt: number }>(
+  const rows = await queryAll<{ task_id: string; status: string; cnt: number }>(
     `
       SELECT task_id, status, COUNT(*) as cnt
       FROM jobs
@@ -489,7 +451,6 @@ export function getJobStatsByTaskIds(taskIds: Id[]): Map<Id, JobStats> {
     taskIds,
   );
 
-  // 填充统计数据
   for (const row of rows) {
     const stats = result.get(row.task_id);
     if (!stats) continue;

@@ -22,7 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (filterIds) {
     const ids = Array.from(new Set(filterIds.filter(isValidId)));
-    const data = getFoldersByIds(ids);
+    const data = await getFoldersByIds(ids);
     const start = 0;
     const end = Math.max(0, data.length - 1);
     const headers = withContentRange('folders', start, end, data.length);
@@ -34,14 +34,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const limit = Math.max(1, Math.trunc(end) - Math.trunc(start) + 1);
   const offset = Math.max(0, Math.trunc(start));
 
-  const data = listFoldersPage({
+  const data = await listFoldersPage({
     limit,
     offset,
     sort: sortField,
     order: sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC',
     filter,
   });
-  const total = countFolders(filter);
+  const total = await countFolders(filter);
   const actualEnd = Math.max(offset, offset + data.length - 1);
   const headers = withContentRange('folders', offset, actualEnd, total);
   return new Response(JSON.stringify(data), { headers });
@@ -77,7 +77,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (!name.trim()) return jsonError('`name` is required', 400);
 
-    const folder = createFolder({ name, parent_id });
+    const folder = await createFolder({ name, parent_id });
     return jsonResponse(folder, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

@@ -41,7 +41,7 @@ export function AgentConnectionProvider({ children }: { children: React.ReactNod
       try {
         const response = await fetch('/api/admin/settings');
         if (response.ok) {
-          const config = await response.json();
+          const config = (await response.json()) as JobConfig;
           setAgentConfigState(config);
         }
       } catch {
@@ -103,12 +103,12 @@ export function AgentConnectionProvider({ children }: { children: React.ReactNod
         return false;
       }
 
-      const result = await response.json();
+      const result = (await response.json()) as { code: number; data?: AgentInfo };
 
       // Local 返回统一响应格式：{ code: 0, message: "success", data: {...} }
       if (result.code === 0 && result.data) {
         setStatus('connected');
-        setAgentInfo(result.data as AgentInfo);
+        setAgentInfo(result.data);
         return true;
       }
 
