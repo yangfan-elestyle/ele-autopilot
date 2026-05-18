@@ -1,6 +1,6 @@
 # 部署流程
 
-AI 改完代码主动执行. push `v*` tag 触发 Actions 构建发布 (Next standalone + `linux-x64` tarball + `checksums.txt` → GitHub Release).
+AI 改完代码主动执行. push `v*` tag 触发 Actions 构建发布 (React Router v7 build + 生产 `node_modules` + `linux-x64` tarball + `checksums.txt` → GitHub Release).
 
 ## 1. 验证
 
@@ -10,10 +10,10 @@ bun run lint
 bun run build
 # 验证 standalone 启动 (用临时端口避免占用 dev)
 HOSTNAME=0.0.0.0 PORT=3001 SQLITE_DB_PATH=/tmp/ele-autopilot-verify.sqlite \
-  node .next/standalone/server.js
+  bun run start
 ```
 
-`bun run build` 失败 / `node server.js` 起不来直接中断, 不要打 tag.
+`bun run build` 失败 / `bun run start` 起不来直接中断, 不要打 tag.
 
 ## 2. 写版本
 
@@ -35,7 +35,7 @@ git push origin <branch> vX.Y.Z
 
 Actions 跑完后, Release 页面应有:
 
-- `ele-autopilot-vX.Y.Z-linux-x64.tar.gz` (含 `server.js` / `.next/standalone-*` / `.next/static` / `public`)
+- `ele-autopilot-vX.Y.Z-linux-x64.tar.gz` (含 `build/` / `public/` / `package.json` / `bun.lock` / `node_modules/` 生产依赖)
 - `checksums.txt` (SHA256, 拉取后用 `shasum -a 256 -c` 校验)
 
 ## 4. amend 修上版 bug
@@ -63,5 +63,8 @@ curl -fsSLO "https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/
 curl -fsSLO "https://github.com/yangfan-elestyle/ele-autopilot-pretest/releases/download/${TAG}/checksums.txt"
 shasum -a 256 -c checksums.txt --ignore-missing
 tar -xzf "ele-autopilot-${TAG}-linux-x64.tar.gz"
+cd "ele-autopilot-${TAG}-linux-x64"
 # 停旧进程 → 切目录 → 起新进程, 注意 SQLITE_DB_PATH 指向持久化目录 (不在 tarball 内)
+HOSTNAME=0.0.0.0 PORT=3000 SQLITE_DB_PATH=/var/lib/ele-autopilot/app.sqlite \
+  ./node_modules/.bin/react-router-serve ./build/server/index.js
 ```

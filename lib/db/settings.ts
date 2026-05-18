@@ -1,5 +1,3 @@
-import 'server-only';
-
 import { getDb } from './connection';
 import type { JobConfig, SettingRow } from './types';
 

@@ -42,18 +42,21 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Prune to production deps
+        run: |
+          rm -rf node_modules
+          bun install --production --frozen-lockfile
+
       - name: Assemble release bundle
         run: |
           set -euo pipefail
           BUNDLE_DIR="ele-autopilot-${GITHUB_REF_NAME}-linux-x64"
           mkdir -p "$BUNDLE_DIR"
-          cp -a .next/standalone/. "$BUNDLE_DIR/"
-          mkdir -p "$BUNDLE_DIR/.next/static"
-          cp -a .next/static/. "$BUNDLE_DIR/.next/static/"
-          if [ -d public ]; then
-            mkdir -p "$BUNDLE_DIR/public"
-            cp -a public/. "$BUNDLE_DIR/public/"
-          fi
+          cp -a build "$BUNDLE_DIR/"
+          if [ -d public ]; then cp -a public "$BUNDLE_DIR/"; fi
+          cp package.json "$BUNDLE_DIR/"
+          cp bun.lock "$BUNDLE_DIR/" || true
+          cp -a node_modules "$BUNDLE_DIR/"
           tar -czf "$BUNDLE_DIR.tar.gz" "$BUNDLE_DIR"
           sha256sum "$BUNDLE_DIR.tar.gz" > checksums.txt
           ls -lh "$BUNDLE_DIR.tar.gz"
